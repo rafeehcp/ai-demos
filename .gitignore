@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.env
+.env.local
+node_modules/
+.next/
+out/
+.vercel/
