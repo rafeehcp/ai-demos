@@ -1,7 +1,7 @@
 import logging
 import re
 import zlib
-from typing import Optional, Protocol
+from typing import Optional, Protocol, Sequence
 
 import httpx
 import numpy as np
@@ -29,6 +29,13 @@ class LLMQuotaError(AppError):
         )
 
 
+class _ModelUnavailable(LLMError):
+    """This model can't serve the request right now (overloaded, retired, timed out)."""
+
+
+_UNAVAILABLE_STATUSES = {404, 500, 502, 503, 504}
+
+
 class LLMProvider(Protocol):
     async def embed(self, texts: list[str]) -> np.ndarray: ...
 
@@ -43,18 +50,18 @@ class OpenAICompatProvider:
         *,
         base_url: str,
         api_key: str,
-        chat_model: str,
+        chat_models: Sequence[str],
         embed_model: str,
         embed_dimensions: Optional[int] = None,
         transport: Optional[httpx.AsyncBaseTransport] = None,
     ) -> None:
-        self._chat_model = chat_model
+        self._chat_models = list(chat_models)
         self._embed_model = embed_model
         self._embed_dimensions = embed_dimensions
         self._client = httpx.AsyncClient(
             base_url=base_url,
             headers={"Authorization": f"Bearer {api_key}"},
-            timeout=httpx.Timeout(60.0, connect=10.0),
+            timeout=httpx.Timeout(30.0, connect=10.0),
             transport=transport,
         )
 
@@ -70,8 +77,9 @@ class OpenAICompatProvider:
                 body["dimensions"] = self._embed_dimensions
             data = await self._post("embeddings", body)
             try:
-                items = sorted(data["data"], key=lambda item: item["index"])
-                vectors = [item["embedding"] for item in items]
+                # Gemini's OpenAI-compatible endpoint omits "index" and returns input order.
+                ranked = sorted(enumerate(data["data"]), key=lambda pair: pair[1].get("index", pair[0]))
+                vectors = [item["embedding"] for _, item in ranked]
             except (KeyError, TypeError) as exc:
                 raise LLMError() from exc
             if len(vectors) != len(batch):
@@ -81,10 +89,23 @@ class OpenAICompatProvider:
         return np.asarray(rows, dtype=np.float32)
 
     async def complete(self, system: str, user: str) -> str:
+        # Free tiers overload or rate-limit individual models, so fall through the list.
+        failures: list[LLMError] = []
+        for model in self._chat_models:
+            try:
+                return await self._complete_with(model, system, user)
+            except (_ModelUnavailable, LLMQuotaError) as exc:
+                logger.warning("chat model %s unavailable, trying next: %s", model, exc.code)
+                failures.append(exc)
+        if failures and all(isinstance(f, LLMQuotaError) for f in failures):
+            raise LLMQuotaError()
+        raise LLMError("The AI model is busy right now. Please try again in a minute.")
+
+    async def _complete_with(self, model: str, system: str, user: str) -> str:
         data = await self._post(
             "chat/completions",
             {
-                "model": self._chat_model,
+                "model": model,
                 "messages": [
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
@@ -103,11 +124,19 @@ class OpenAICompatProvider:
     async def _post(self, path: str, body: dict) -> dict:
         try:
             response = await self._client.post(path, json=body)
+        except httpx.TimeoutException as exc:
+            logger.warning("LLM request to %s timed out", path)
+            raise _ModelUnavailable() from exc
         except httpx.HTTPError as exc:
             logger.warning("LLM request to %s failed: %r", path, exc)
             raise LLMError() from exc
         if response.status_code == 429:
             raise LLMQuotaError()
+        if response.status_code in _UNAVAILABLE_STATUSES:
+            logger.warning(
+                "LLM %s returned %d: %s", path, response.status_code, response.text[:300]
+            )
+            raise _ModelUnavailable()
         if response.is_error:
             logger.warning(
                 "LLM %s returned %d: %s", path, response.status_code, response.text[:500]
@@ -143,7 +172,7 @@ def get_provider(settings: Settings) -> LLMProvider:
     return OpenAICompatProvider(
         base_url=settings.llm_base_url,
         api_key=settings.llm_api_key,
-        chat_model=settings.chat_model,
+        chat_models=settings.chat_models,
         embed_model=settings.embed_model,
         embed_dimensions=settings.embed_dimensions,
     )

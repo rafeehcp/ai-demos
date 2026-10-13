@@ -32,7 +32,7 @@ Every error response has this shape and a 4xx/5xx status:
 Limits the UI shows to the visitor.
 
 ```json
-{ "max_documents": 3, "max_file_mb": 10, "max_pages": 100, "provider_label": "Gemini 2.5 Flash" }
+{ "max_documents": 3, "max_file_mb": 10, "max_pages": 100, "provider_label": "Gemini 3.5 Flash" }
 ```
 
 ## POST /api/sessions

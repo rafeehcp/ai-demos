@@ -17,7 +17,7 @@ services:
       - key: LLM_API_KEY
         sync: false
       - key: CHAT_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.5-flash,gemini-3.5-flash-lite,gemini-flash-latest
       - key: EMBED_MODEL
         value: gemini-embedding-001
       - key: CORS_ORIGINS

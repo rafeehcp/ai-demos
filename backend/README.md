@@ -35,7 +35,8 @@ The API listens on http://localhost:8000. Check it with `curl localhost:8000/api
 | `LLM_PROVIDER` | `openai_compat` | `fake` runs offline with deterministic embeddings and a canned answer. |
 | `LLM_BASE_URL` | Gemini's OpenAI-compatible endpoint | Any OpenAI-compatible API. |
 | `LLM_API_KEY` | none | Required unless `LLM_PROVIDER=fake`. The app refuses to start without it. |
-| `CHAT_MODEL`, `EMBED_MODEL` | `gemini-2.5-flash`, `gemini-embedding-001` | `CHAT_MODEL` also sets the label the UI shows. |
+| `CHAT_MODEL` | `gemini-3.5-flash,gemini-3.5-flash-lite,gemini-flash-latest` | Comma-separated fallback chain. When a model is overloaded, retired or out of quota, the next one answers. The first sets the label the UI shows. |
+| `EMBED_MODEL` | `gemini-embedding-001` | |
 | `EMBED_DIMENSIONS` | unset | Sent as `dimensions` when set. |
 | `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated frontend origins. |
 

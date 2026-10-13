@@ -14,7 +14,7 @@ def provider(handler, **kwargs) -> OpenAICompatProvider:
     return OpenAICompatProvider(
         base_url=BASE_URL,
         api_key="sk-test",
-        chat_model="gemini-2.5-flash",
+        chat_models=kwargs.pop("chat_models", ["gemini-3.8-flash"]),
         embed_model="gemini-embedding-001",
         transport=httpx.MockTransport(handler),
         **kwargs,
@@ -51,6 +51,16 @@ async def test_embeddings_are_batched_and_keep_input_order():
 
 
 @pytest.mark.anyio
+async def test_embeddings_without_index_keep_response_order():
+    def handler(request: httpx.Request) -> httpx.Response:
+        texts = json.loads(request.content)["input"]
+        return httpx.Response(200, json={"data": [{"embedding": [float(len(t)), 1.0]} for t in texts]})
+
+    vectors = await provider(handler).embed(["a", "bbb", "cc"])
+    assert vectors[:, 0].tolist() == [1.0, 3.0, 2.0]
+
+
+@pytest.mark.anyio
 async def test_dimensions_omitted_when_unset():
     bodies = []
 
@@ -77,7 +87,7 @@ async def test_complete_sends_system_and_user_messages():
     assert reply == "Answer [1]."
     assert seen["url"] == BASE_URL + "chat/completions"
     assert seen["auth"] == "Bearer sk-test"
-    assert seen["body"]["model"] == "gemini-2.5-flash"
+    assert seen["body"]["model"] == "gemini-3.8-flash"
     assert seen["body"]["messages"] == [
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "usr"},
@@ -129,5 +139,68 @@ async def test_fake_embeddings_score_related_text_higher():
 
 
 def test_provider_label_from_model_name():
-    assert model_label("gemini-2.5-flash") == "Gemini 2.5 Flash"
+    assert model_label("gemini-3.8-flash") == "Gemini 3.8 Flash"
     assert model_label("models/gpt-4o-mini") == "GPT 4o Mini"
+
+
+def _chat_reply(text: str) -> httpx.Response:
+    return httpx.Response(200, json={"choices": [{"message": {"content": text}}]})
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("failure", [503, 404, 429, "timeout"])
+async def test_busy_chat_model_falls_back_to_next(failure):
+    tried = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        model = json.loads(request.content)["model"]
+        tried.append(model)
+        if model == "busy-model":
+            if failure == "timeout":
+                raise httpx.ReadTimeout("slow", request=request)
+            return httpx.Response(failure, json={"error": {}})
+        return _chat_reply("from backup")
+
+    answer = await provider(handler, chat_models=["busy-model", "backup-model"]).complete("s", "u")
+    assert answer == "from backup"
+    assert tried == ["busy-model", "backup-model"]
+
+
+@pytest.mark.anyio
+async def test_all_chat_models_busy_is_llm_error():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, json={"error": {}})
+
+    with pytest.raises(LLMError) as exc:
+        await provider(handler, chat_models=["a", "b"]).complete("s", "u")
+    assert exc.value.code == "llm_error"
+
+
+@pytest.mark.anyio
+async def test_all_chat_models_out_of_quota_is_quota_error():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json={"error": {}})
+
+    with pytest.raises(LLMQuotaError):
+        await provider(handler, chat_models=["a", "b"]).complete("s", "u")
+
+
+@pytest.mark.anyio
+async def test_auth_failure_does_not_try_other_models():
+    tried = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        tried.append(json.loads(request.content)["model"])
+        return httpx.Response(401, json={"error": {}})
+
+    with pytest.raises(LLMError):
+        await provider(handler, chat_models=["a", "b"]).complete("s", "u")
+    assert tried == ["a"]
+
+
+def test_chat_model_list_and_label_use_first_model():
+    from app.core.config import Settings
+
+    settings = Settings(_env_file=None, chat_model=" gemini-3.5-flash , gemini-3.5-flash-lite ")
+    assert settings.chat_models == ["gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    assert settings.provider_label == "Gemini 3.5 Flash"

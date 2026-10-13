@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     llm_provider: Literal["openai_compat", "fake"] = "openai_compat"
     llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     llm_api_key: str = ""
-    chat_model: str = "gemini-2.5-flash"
+    # Comma-separated; later models are fallbacks when earlier ones are busy.
+    chat_model: str = "gemini-3.5-flash,gemini-3.5-flash-lite,gemini-flash-latest"
     embed_model: str = "gemini-embedding-001"
     embed_dimensions: Optional[int] = None
 
@@ -38,14 +39,18 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
+    def chat_models(self) -> list[str]:
+        return [m.strip() for m in self.chat_model.split(",") if m.strip()]
+
+    @property
     def provider_label(self) -> str:
         if self.llm_provider == "fake":
             return "Offline fake model"
-        return model_label(self.chat_model)
+        return model_label(self.chat_models[0])
 
 
 def model_label(model: str) -> str:
-    """'gemini-2.5-flash' -> 'Gemini 2.5 Flash', 'models/gpt-4o-mini' -> 'GPT 4o Mini'."""
+    """'gemini-3.8-flash' -> 'Gemini 3.8 Flash', 'models/gpt-4o-mini' -> 'GPT 4o Mini'."""
     name = model.rsplit("/", 1)[-1]
     words = [w for w in re.split(r"[-_\s]+", name) if w]
     return " ".join(
