@@ -146,13 +146,14 @@ def test_malformed_body_uses_error_shape(client):
 def test_rate_limit_counts_uploads_and_asks_per_ip(make_client):
     client = make_client(rate_limit_per_minute=3)
     session_id = new_session(client)
-    forwarded = {"X-Forwarded-For": "203.0.113.7, 10.0.0.1"}
+    def forwarded(spoofed: str) -> dict[str, str]:
+        return {"X-Forwarded-For": f"{spoofed}, 203.0.113.7"}
 
-    assert upload(client, session_id, make_pdf(["text"]), headers=forwarded).status_code == 201
-    for _ in range(2):
-        response = client.post(f"/api/sessions/{session_id}/ask", json={"question": "text?"}, headers=forwarded)
+    assert upload(client, session_id, make_pdf(["text"]), headers=forwarded("1.1.1.1")).status_code == 201
+    for spoofed in ("2.2.2.2", "3.3.3.3"):
+        response = client.post(f"/api/sessions/{session_id}/ask", json={"question": "text?"}, headers=forwarded(spoofed))
         assert response.status_code == 200
-    response = client.post(f"/api/sessions/{session_id}/ask", json={"question": "text?"}, headers=forwarded)
+    response = client.post(f"/api/sessions/{session_id}/ask", json={"question": "text?"}, headers=forwarded("4.4.4.4"))
     assert error_of(response) == (429, "rate_limited")
     assert 1 <= int(response.headers["Retry-After"]) <= 60
 

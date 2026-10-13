@@ -12,10 +12,12 @@ _SWEEP_THRESHOLD = 10_000
 
 
 def client_ip(request: Request) -> str:
+    # The hosting proxy appends the address it saw, so only the last entry is trustworthy.
+    # Earlier entries come from the client and can be forged to dodge the limit.
     forwarded = request.headers.get("x-forwarded-for", "")
-    first = forwarded.split(",")[0].strip()
-    if first:
-        return first
+    last = forwarded.split(",")[-1].strip()
+    if last:
+        return last
     return request.client.host if request.client else "unknown"
 
 
