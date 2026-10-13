@@ -45,7 +45,7 @@ flowchart LR
 | Frontend | Next.js (App Router), TypeScript |
 | LLM | Gemini via its OpenAI-compatible API (swappable) |
 | Hosting | Render (API) and Vercel (frontend) |
-| Tests | pytest (78 tests across both demos, offline fake model), Vitest |
+| Tests | pytest (80 tests across both demos, offline fake model), Vitest |
 
 ## Contract reviewer
 
@@ -63,7 +63,7 @@ flowchart LR
   F --> G[Sort risks and clauses]
 ```
 
-- **Checked quotes.** Quotes are matched after folding case, whitespace and curly quotes. A quote found only on another page moves to that page. A quote found nowhere is marked unverified, and the UI says "Quote not found in document" instead of showing it.
+- **Checked quotes.** Quotes are matched after folding case, whitespace and curly quotes. A quote found on a different page moves to the nearest page where it appears. A quote found nowhere is marked unverified, and the UI says "Quote not found in document" instead of showing it.
 - **No retrieval step.** A contract of up to 40 pages fits in one model call, and a reviewer has to read all of it anyway.
 - **Strict output.** The reply is validated against a closed schema: clause kinds and severities are fixed lists. A malformed reply is retried once with the validation error, then reported as an error rather than shown half-parsed.
 - **Shared core.** The PDF checks, model fallback chain, rate limit and error shape are the same code as Chat with your docs. Nothing is stored: the review is computed and returned in one request.
