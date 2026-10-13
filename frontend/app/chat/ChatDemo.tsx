@@ -1,16 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { DemoShell } from "@/app/components/DemoShell";
 import { ApiError, type Config } from "@/lib/api";
 import { setupClient } from "@/lib/client";
+import { describeError as describe, SLOW_AFTER_MS, waitForServer } from "@/lib/wake";
 import { DocumentPanel } from "./DocumentPanel";
 import { Thread } from "./Thread";
 import { initialState, occupiesSlot, readyDocuments, reducer } from "./state";
 import styles from "./chat.module.css";
 
-const WAKE_DEADLINE_MS = 120_000;
-const SLOW_AFTER_MS = 1_500;
 const MAX_QUESTION = 1_000;
 
 const STARTERS = [
@@ -18,19 +17,6 @@ const STARTERS = [
   "What dates or deadlines does it mention?",
   "What does it say about costs or payment?",
 ];
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-function describe(err: unknown): string {
-  if (err instanceof ApiError) {
-    if (err.code === "rate_limited" && err.retryAfter !== null) {
-      const s = err.retryAfter;
-      return `${err.message} Try again in ${s} second${s === 1 ? "" : "s"}.`;
-    }
-    return err.message;
-  }
-  return "Something went wrong in the page. Reload it and try again.";
-}
 
 const isSessionGone = (err: unknown) => err instanceof ApiError && err.code === "session_not_found";
 
@@ -63,18 +49,7 @@ export function ChatDemo() {
     let cancelled = false;
     const slowTimer = setTimeout(() => dispatch({ type: "wakingSlow" }), SLOW_AFTER_MS);
     (async () => {
-      const deadline = Date.now() + WAKE_DEADLINE_MS;
-      // A sleeping free-tier host can drop or stall the first requests; keep knocking.
-      for (;;) {
-        try {
-          await client.health(60_000);
-          break;
-        } catch (err) {
-          if (cancelled) return;
-          if (Date.now() > deadline) throw err;
-          await sleep(3_000);
-        }
-      }
+      if (!(await waitForServer(client, () => cancelled))) return;
       const [config, sessionId] = await Promise.all([client.config(), client.createSession()]);
       if (cancelled) return;
       sessionRef.current = sessionId;
@@ -211,18 +186,7 @@ export function ChatDemo() {
           : null;
 
   return (
-    <div className={styles.shell}>
-      <header className={styles.topbar}>
-        <div className={styles.topbarInner}>
-          <Link href="/" className={styles.back}>
-            All demos
-          </Link>
-          <p className={styles.notice} role="note">
-            Demo only. Don&apos;t upload real or confidential documents.
-          </p>
-        </div>
-      </header>
-
+    <DemoShell>
       <div className={styles.layout}>
         <div className={styles.intro}>
           <h1 className={styles.title}>Chat with your docs</h1>
@@ -308,6 +272,6 @@ export function ChatDemo() {
           </form>
         </section>
       </div>
-    </div>
+    </DemoShell>
   );
 }
