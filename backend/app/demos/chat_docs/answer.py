@@ -9,7 +9,7 @@ SYSTEM_PROMPT = """You answer questions about the user's documents.
 Use only the numbered sources provided. Do not use outside knowledge.
 Cite every claim with the number of its source in square brackets, like [1] or [2].
 If the sources do not answer the question, say plainly that the documents don't say, and cite nothing.
-Keep the answer short and direct."""
+Keep the answer short and direct. Write plain prose sentences: no Markdown, bullet points, bold or headings."""
 
 # Matches "[3]" and grouped forms like "[1, 3]", plus the whitespace before them,
 # so a dropped marker doesn't leave a stray space.
