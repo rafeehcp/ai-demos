@@ -1,0 +1,133 @@
+:root {
+  --paper: #eef2f4;
+  --surface: #ffffff;
+  --ink: #15212b;
+  --ink-soft: #3b4955;
+  --muted: #5f6d78;
+  --rule: #d3dbe1;
+  --mark: #ffe35a;
+  --mark-ink: #15212b;
+  --mark-soft: color-mix(in srgb, var(--mark) 40%, transparent);
+  --mark-quote: color-mix(in srgb, var(--mark) 55%, transparent);
+  --link: #1d4bc4;
+  --focus: #1d4bc4;
+  --danger: #a8261b;
+  --danger-surface: #fbeceb;
+
+  --radius-s: 4px;
+  --radius-m: 10px;
+  --shadow-lift: 0 1px 0 rgb(21 33 43 / 0.06), 0 8px 24px -12px rgb(21 33 43 / 0.25);
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0e151b;
+    --surface: #151f27;
+    --ink: #e4eaee;
+    --ink-soft: #c2ccd4;
+    --muted: #93a2ae;
+    --rule: #2a3843;
+    --mark: #e6c93c;
+    --mark-ink: #12181d;
+    --mark-soft: color-mix(in srgb, var(--mark) 20%, transparent);
+    --mark-quote: color-mix(in srgb, var(--mark) 24%, transparent);
+    --link: #93b2ff;
+    --focus: #93b2ff;
+    --danger: #ff9b8f;
+    --danger-surface: #3a1d1b;
+    --shadow-lift: 0 1px 0 rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+figure,
+blockquote {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--link);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+mark {
+  background: var(--mark);
+  color: var(--mark-ink);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
