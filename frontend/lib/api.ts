@@ -30,8 +30,6 @@ export type AskResponse = {
   citations: Citation[];
 };
 
-// Contract reviewer, docs/contract-reviewer.md
-
 export const CLAUSE_KINDS = [
   "termination",
   "renewal",

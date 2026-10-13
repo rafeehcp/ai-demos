@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import styles from "./shared.module.css";
 
-/** Every demo page: a back link and the notice that stays on screen while scrolling. */
 export function DemoShell({ children }: { children: ReactNode }) {
   return (
     <div className={styles.shell}>

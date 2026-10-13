@@ -22,7 +22,6 @@ export const SEVERITY_LABELS: Record<Severity, string> = {
 
 type Clause = ContractReview["clauses"][number];
 
-/** Clauses grouped by kind, groups in the fixed CLAUSE_KINDS order, empty kinds left out. */
 export function groupClauses(clauses: Clause[]): { kind: ClauseKind; label: string; clauses: Clause[] }[] {
   return CLAUSE_KINDS.flatMap((kind) => {
     const inKind = clauses.filter((c) => c.kind === kind);

@@ -169,7 +169,6 @@ function KeyTermRows({ term, fileUrl }: { term: ContractReview["key_terms"][numb
 
 type ItemProps = {
   title: string;
-  /** Risks sit directly under their section heading; clauses sit under a kind heading. */
   headingLevel: 4 | 5;
   body: string;
   evidence: EvidenceData;

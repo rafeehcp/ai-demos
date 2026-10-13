@@ -1,13 +1,11 @@
 import { ApiError, type ApiClient } from "./api";
 
-/** The part of a demo's server state that ServerStatus renders. */
 export type BootPhase =
   | { phase: "waking"; slow: boolean }
   | { phase: "ready" }
   | { phase: "failed"; message: string }
   | { phase: "unconfigured" };
 
-/** Show "Waking up the server" instead of "Connecting" after this long. */
 export const SLOW_AFTER_MS = 1_500;
 const WAKE_DEADLINE_MS = 120_000;
 
