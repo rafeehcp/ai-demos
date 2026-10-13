@@ -93,4 +93,16 @@ describe("api client success", () => {
     await client.ask("s_1", "Is there a fee?");
     expect(requests[0]).toMatchObject({ method: "POST", path: "/api/sessions/s_1/ask", json: { question: "Is there a fee?" } });
   });
+
+  it("posts the contract as the multipart file field", async () => {
+    const { client, requests } = clientReturning({
+      status: 200,
+      retryAfter: null,
+      text: JSON.stringify({ document_name: "lease.pdf", pages: 3, review: {} }),
+    });
+    const file = new File(["%PDF"], "lease.pdf");
+    await expect(client.reviewContract(file)).resolves.toMatchObject({ document_name: "lease.pdf", pages: 3 });
+    expect(requests[0]).toMatchObject({ method: "POST", path: "/api/contracts/review" });
+    expect(requests[0].form?.get("file")).toBe(file);
+  });
 });

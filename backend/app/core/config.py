@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     max_documents: int = 3
     max_file_mb: int = 10
     max_pages: int = 100
+    contract_max_pages: int = 40
     top_k: int = 6
     rate_limit_per_minute: int = 10
 

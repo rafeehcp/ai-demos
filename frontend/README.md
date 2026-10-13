@@ -1,7 +1,7 @@
 # Frontend
 
-Next.js App Router site for the AI demos. `/` lists the demos and `/chat` is
-Chat with your docs. The typed client for `docs/api.md` is in `lib/api.ts`.
+Next.js App Router site for the AI demos. `/` lists the demos, `/chat` is
+Chat with your docs and `/contracts` is the contract reviewer. The typed client for `docs/api.md` is in `lib/api.ts`.
 
 ## Run
 
@@ -26,6 +26,10 @@ state shows. Questions that start with these commands return contract errors:
 | `!expire` | the session is dropped and the call returns `session_not_found` |
 | `!quota` | `llm_quota` |
 | `!none` | an answer with no citations |
+
+A contract review returns a real review of the sample lease
+(`lib/mock-review.ts`) with one quote that isn't in the contract, so the
+unverified state shows. Uploading a file named `error.pdf` returns `llm_error`.
 
 A production build with `NEXT_PUBLIC_API_URL` unset shows a configuration
 error instead of falling back to the mock.

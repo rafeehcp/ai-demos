@@ -1,5 +1,7 @@
 # API contract: Chat with your docs
 
+The contract reviewer's endpoint, `POST /api/contracts/review`, is specified in [contract-reviewer.md](contract-reviewer.md). It uses the same error shape and codes.
+
 Base URL comes from `NEXT_PUBLIC_API_URL` on the frontend (for example `http://localhost:8000`). All bodies are JSON except the upload, which is `multipart/form-data`.
 
 Every error response has this shape and a 4xx/5xx status:
@@ -32,7 +34,7 @@ Every error response has this shape and a 4xx/5xx status:
 Limits the UI shows to the visitor.
 
 ```json
-{ "max_documents": 3, "max_file_mb": 10, "max_pages": 100, "provider_label": "Gemini 3.5 Flash" }
+{ "max_documents": 3, "max_file_mb": 10, "max_pages": 100, "contract_max_pages": 40, "provider_label": "Gemini 3.5 Flash" }
 ```
 
 ## POST /api/sessions

@@ -12,6 +12,7 @@ from app.core.ratelimit import RateLimiter
 from app.core.sessions import SessionStore
 from app.demos.chat_docs.router import ChatState
 from app.demos.chat_docs.router import router as chat_docs_router
+from app.demos.contracts.router import router as contracts_router
 
 
 def create_app(settings: Optional[Settings] = None) -> FastAPI:
@@ -54,8 +55,10 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             "max_documents": settings.max_documents,
             "max_file_mb": settings.max_file_mb,
             "max_pages": settings.max_pages,
+            "contract_max_pages": settings.contract_max_pages,
             "provider_label": settings.provider_label,
         }
 
     app.include_router(chat_docs_router)
+    app.include_router(contracts_router)
     return app

@@ -6,10 +6,10 @@ from fastapi import APIRouter, Depends, File, Request, Response, UploadFile
 from pydantic import BaseModel
 
 from app.core.config import Settings
+from app.core.deps import get_llm, get_settings, rate_limited
 from app.core.errors import AppError
 from app.core.llm import LLMProvider
 from app.core.pdf import extract_pages
-from app.core.ratelimit import RateLimiter, client_ip
 from app.core.sessions import Session, SessionStore
 from app.demos.chat_docs.answer import Citation, build_prompt, parse_citations
 from app.demos.chat_docs.chunking import chunk_document
@@ -54,21 +54,8 @@ class AskOut(BaseModel):
     citations: list[Citation]
 
 
-def get_settings(request: Request) -> Settings:
-    return request.app.state.settings
-
-
-def get_llm(request: Request) -> LLMProvider:
-    return request.app.state.llm
-
-
 def get_store(request: Request) -> SessionStore[ChatState]:
     return request.app.state.chat_sessions
-
-
-def rate_limited(request: Request) -> None:
-    limiter: RateLimiter = request.app.state.rate_limiter
-    limiter.hit(client_ip(request))
 
 
 def get_session(session_id: str, store: SessionStore[ChatState] = Depends(get_store)) -> ChatSession:

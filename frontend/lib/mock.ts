@@ -7,10 +7,14 @@
 //   !expire   drops the session, then session_not_found
 //   !quota    llm_quota
 //   !none     an answer with no citations
+//
+// A contract review returns MOCK_REVIEW. Upload a file named error.pdf to get llm_error.
 
-import type { AskResponse, Citation, Config, DocumentInfo, Transport, TransportResponse } from "./api";
+import type { AskResponse, Citation, Config, DocumentInfo, ReviewResponse, Transport, TransportResponse } from "./api";
+import { MOCK_REVIEW } from "./mock-review";
+import { countPdfPages } from "./pdf";
 
-const config: Config = { max_documents: 3, max_file_mb: 10, max_pages: 100, provider_label: "Mock provider" };
+const config: Config = { max_documents: 3, max_file_mb: 10, max_pages: 100, contract_max_pages: 40, provider_label: "Mock provider" };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const id = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
@@ -22,11 +26,6 @@ const json = (status: number, body: unknown, retryAfter: string | null = null): 
 });
 const fail = (status: number, code: string, message: string, retryAfter: string | null = null) =>
   json(status, { error: { code, message } }, retryAfter);
-
-async function countPages(file: File): Promise<number> {
-  const text = new TextDecoder("latin1").decode(await file.arrayBuffer());
-  return text.match(/\/Type\s*\/Page(?![a-zA-Z])/g)?.length ?? 1;
-}
 
 function answerFor(question: string, docs: DocumentInfo[]): AskResponse {
   if (question.startsWith("!none")) {
@@ -79,6 +78,27 @@ export function mockTransport(): Transport {
       return json(201, { session_id: sessionId });
     }
 
+    if (method === "POST" && path === "/api/contracts/review") {
+      const file = req.form?.get("file");
+      if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".pdf")) {
+        return fail(400, "not_a_pdf", "That file isn't a PDF. Please upload a .pdf file.");
+      }
+      for (let i = 1; i <= 10; i++) {
+        await sleep(40);
+        req.onUploadProgress?.(i / 10);
+      }
+      await sleep(4000);
+      if (file.name.toLowerCase() === "error.pdf") {
+        return fail(502, "llm_error", "The AI model returned a review the app couldn't read. Please try again.");
+      }
+      const response: ReviewResponse = {
+        document_name: file.name,
+        pages: (await countPdfPages(file)) ?? 1,
+        review: MOCK_REVIEW,
+      };
+      return json(200, response);
+    }
+
     const m = path.match(/^\/api\/sessions\/([^/]+)\/(documents|ask)(?:\/([^/]+))?$/);
     if (!m) return fail(404, "not_found", `Mock has no route for ${method} ${path}.`);
     const [, sessionId, resource, documentId] = m;
@@ -103,7 +123,7 @@ export function mockTransport(): Transport {
         req.onUploadProgress?.(i / 10);
       }
       await sleep(1200);
-      const pages = await countPages(file);
+      const pages = (await countPdfPages(file)) ?? 1;
       const doc: DocumentInfo = { id: id("d"), name: file.name, pages, chunks: pages * 3 };
       docs.push(doc);
       return json(201, doc);

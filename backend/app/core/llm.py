@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 import zlib
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 EMBED_BATCH_SIZE = 100
 FAKE_DIM = 256
+_FAKE_FIRST_PAGE = re.compile(r"=== Page 1 ===\n(.*?)(?:\n=== Page |\Z)", re.S)
 
 
 class LLMError(AppError):
@@ -29,6 +31,14 @@ class LLMQuotaError(AppError):
         )
 
 
+class LLMBadJSON(LLMError):
+    """The model replied, but not with a JSON object. `detail` says why, for a retry prompt."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__()
+        self.detail = detail
+
+
 class _ModelUnavailable(LLMError):
     """This model can't serve the request right now (overloaded, retired, timed out)."""
 
@@ -40,6 +50,8 @@ class LLMProvider(Protocol):
     async def embed(self, texts: list[str]) -> np.ndarray: ...
 
     async def complete(self, system: str, user: str) -> str: ...
+
+    async def complete_json(self, system: str, user: str) -> dict: ...
 
     async def aclose(self) -> None: ...
 
@@ -89,11 +101,24 @@ class OpenAICompatProvider:
         return np.asarray(rows, dtype=np.float32)
 
     async def complete(self, system: str, user: str) -> str:
+        return await self._first_available(system, user, json_mode=False)
+
+    async def complete_json(self, system: str, user: str) -> dict:
+        content = await self._first_available(system, user, json_mode=True)
+        try:
+            data = json.loads(content)
+        except ValueError as exc:
+            raise LLMBadJSON(f"The reply was not valid JSON ({exc}).") from exc
+        if not isinstance(data, dict):
+            raise LLMBadJSON("The reply was JSON but not an object.")
+        return data
+
+    async def _first_available(self, system: str, user: str, *, json_mode: bool) -> str:
         # Free tiers overload or rate-limit individual models, so fall through the list.
         failures: list[LLMError] = []
         for model in self._chat_models:
             try:
-                return await self._complete_with(model, system, user)
+                return await self._complete_with(model, system, user, json_mode=json_mode)
             except (_ModelUnavailable, LLMQuotaError) as exc:
                 logger.warning("chat model %s unavailable, trying next: %s", model, exc.code)
                 failures.append(exc)
@@ -101,18 +126,18 @@ class OpenAICompatProvider:
             raise LLMQuotaError()
         raise LLMError("The AI model is busy right now. Please try again in a minute.")
 
-    async def _complete_with(self, model: str, system: str, user: str) -> str:
-        data = await self._post(
-            "chat/completions",
-            {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                "temperature": 0.2,
-            },
-        )
+    async def _complete_with(self, model: str, system: str, user: str, *, json_mode: bool) -> str:
+        body: dict = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "temperature": 0.2,
+        }
+        if json_mode:
+            body["response_format"] = {"type": "json_object"}
+        data = await self._post("chat/completions", body)
         try:
             content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
@@ -164,6 +189,34 @@ class FakeProvider:
 
     async def complete(self, system: str, user: str) -> str:
         return "This offline demo answer is drawn from the most relevant passage [1]."
+
+    async def complete_json(self, system: str, user: str) -> dict:
+        """A fixed contract review whose quotes come from page 1 of the prompt."""
+        match = _FAKE_FIRST_PAGE.search(user)
+        words = (match.group(1) if match else user).split()
+        evidence = {"page": 1, "quote": " ".join(words[:12])}
+        return {
+            "summary": "This is an offline review. It cites the opening words of the first page.",
+            "contract_type": "Contract",
+            "parties": [{"name": "First party", "role": "Party"}],
+            "key_terms": [{"label": "Opening words", "value": " ".join(words[:4]), "evidence": evidence}],
+            "clauses": [
+                {
+                    "kind": "other",
+                    "title": "Opening",
+                    "plain_english": "The contract opens with these words.",
+                    "evidence": evidence,
+                }
+            ],
+            "risks": [
+                {
+                    "severity": "low",
+                    "title": "Offline review",
+                    "explanation": "No model read this contract, so treat every finding as a placeholder.",
+                    "evidence": evidence,
+                }
+            ],
+        }
 
 
 def get_provider(settings: Settings) -> LLMProvider:

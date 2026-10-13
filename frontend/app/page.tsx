@@ -3,10 +3,6 @@ import styles from "./page.module.css";
 
 const UPCOMING = [
   {
-    title: "Contract reviewer",
-    summary: "Reads a contract, flags clauses worth a second look, and explains why.",
-  },
-  {
     title: "Invoice → JSON",
     summary: "Turns a PDF invoice into structured JSON your app can import.",
   },
@@ -75,6 +71,20 @@ export default function Home() {
               <p className={styles.demoSummary}>
                 Upload a PDF and ask questions about it. Every answer cites the page it came from, and one click opens
                 that page.
+              </p>
+              <p className={styles.demoAction} aria-hidden="true">
+                Try it now
+              </p>
+            </li>
+            <li className={`${styles.demo} ${styles.demoLive}`}>
+              <h3 className={styles.demoTitle}>
+                <Link href="/contracts" className={styles.demoLink}>
+                  Contract reviewer
+                </Link>
+              </h3>
+              <p className={styles.demoSummary}>
+                Upload a contract to get its key terms, clauses and risks in plain English. Every point quotes the
+                contract, and every quote is checked against the document.
               </p>
               <p className={styles.demoAction} aria-hidden="true">
                 Try it now

@@ -1,0 +1,110 @@
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top bar: back link and the always-visible demo notice */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+
+.topbarInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 24px;
+}
+
+.back {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: 4px 0;
+}
+
+.back::before {
+  content: "\2190\00a0";
+}
+
+.back:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.notice {
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-left: 4px solid var(--mark);
+  color: var(--ink);
+}
+
+.waking {
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-m);
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+}
+
+.wakingTitle {
+  color: var(--ink);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.wakingBar {
+  margin-top: 12px;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent 0 35%, var(--mark) 35% 65%, transparent 65%) 0 0 / 300% 100%,
+    var(--rule);
+  animation: sweep 1.6s linear infinite;
+}
+
+.errorBox {
+  padding: 14px 16px;
+  border-radius: var(--radius-m);
+  background: var(--danger-surface);
+  color: var(--danger);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9375rem;
+}
+
+.secondaryButton {
+  padding: 7px 14px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.secondaryButton:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+@keyframes sweep {
+  from {
+    background-position: 100% 0, 0 0;
+  }
+  to {
+    background-position: -50% 0, 0 0;
+  }
+}

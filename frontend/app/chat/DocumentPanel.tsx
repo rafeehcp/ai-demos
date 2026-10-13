@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ServerStatus } from "@/app/components/ServerStatus";
+import shared from "@/app/components/shared.module.css";
 import type { Server, Upload, UploadStatus } from "./state";
 import styles from "./chat.module.css";
 
@@ -50,34 +52,7 @@ export function DocumentPanel(props: Props) {
         Documents
       </h2>
 
-      {server.phase === "waking" && (
-        <div className={styles.waking} role="status">
-          {server.slow ? (
-            <>
-              <p className={styles.wakingTitle}>Waking up the server</p>
-              <p>It runs on free hosting that sleeps when idle, so this can take about 30 seconds.</p>
-              <div className={styles.wakingBar} aria-hidden="true" />
-            </>
-          ) : (
-            <p>Connecting to the server</p>
-          )}
-        </div>
-      )}
-
-      {server.phase === "failed" && (
-        <div className={styles.errorBox} role="alert">
-          <p>{server.message}</p>
-          <button type="button" className={styles.secondaryButton} onClick={props.onRetryBoot}>
-            Try again
-          </button>
-        </div>
-      )}
-
-      {server.phase === "unconfigured" && (
-        <div className={styles.errorBox} role="alert">
-          <p>This deployment has no API address. Set NEXT_PUBLIC_API_URL and rebuild.</p>
-        </div>
-      )}
+      <ServerStatus server={server} onRetry={props.onRetryBoot} />
 
       {ready && (
         <label
@@ -118,7 +93,7 @@ export function DocumentPanel(props: Props) {
             <p>Your session expired, so the server no longer has your documents. Upload them again to keep asking.</p>
             <button
               type="button"
-              className={styles.secondaryButton}
+              className={shared.secondaryButton}
               onClick={() => props.onReupload(stale.map(({ key, file }) => ({ key, file })))}
             >
               Upload {stale.length === 1 ? "it" : "them"} again

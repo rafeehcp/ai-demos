@@ -6,6 +6,7 @@ export type Config = {
   max_documents: number;
   max_file_mb: number;
   max_pages: number;
+  contract_max_pages: number;
   provider_label: string;
 };
 
@@ -28,6 +29,37 @@ export type AskResponse = {
   answer: string;
   citations: Citation[];
 };
+
+export const CLAUSE_KINDS = [
+  "termination",
+  "renewal",
+  "payment",
+  "liability",
+  "indemnity",
+  "confidentiality",
+  "intellectual_property",
+  "governing_law",
+  "dispute_resolution",
+  "non_compete",
+  "other",
+] as const;
+
+export type ClauseKind = (typeof CLAUSE_KINDS)[number];
+
+export type Severity = "high" | "medium" | "low";
+
+export type Evidence = { page: number; quote: string; verified: boolean };
+
+export type ContractReview = {
+  summary: string;
+  contract_type: string;
+  parties: { name: string; role: string }[];
+  key_terms: { label: string; value: string; evidence: Evidence }[];
+  clauses: { kind: ClauseKind; title: string; plain_english: string; evidence: Evidence }[];
+  risks: { severity: Severity; title: string; explanation: string; evidence: Evidence }[];
+};
+
+export type ReviewResponse = { document_name: string; pages: number; review: ContractReview };
 
 export type ErrorCode =
   | "not_a_pdf"
@@ -194,6 +226,12 @@ export function createClient(transport: Transport) {
 
     deleteDocument: (sessionId: string, documentId: string) =>
       call<void>({ method: "DELETE", path: `${docsPath(sessionId)}/${encodeURIComponent(documentId)}` }),
+
+    reviewContract: (file: File, onUploadProgress?: (fraction: number) => void) => {
+      const form = new FormData();
+      form.append("file", file);
+      return call<ReviewResponse>({ method: "POST", path: "/api/contracts/review", form, onUploadProgress });
+    },
 
     ask: (sessionId: string, question: string) =>
       call<AskResponse>({

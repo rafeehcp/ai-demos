@@ -24,6 +24,7 @@ def test_health_and_config(client):
         "max_documents": 3,
         "max_file_mb": 10,
         "max_pages": 100,
+        "contract_max_pages": 40,
         "provider_label": "Offline fake model",
     }
 
