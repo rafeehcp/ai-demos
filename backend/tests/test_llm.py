@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from app.core.config import model_label
-from app.core.llm import FakeProvider, LLMError, LLMQuotaError, OpenAICompatProvider
+from app.core.llm import FakeProvider, LLMBadJSON, LLMError, LLMQuotaError, OpenAICompatProvider
 
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
@@ -204,3 +204,55 @@ def test_chat_model_list_and_label_use_first_model():
     settings = Settings(_env_file=None, chat_model=" gemini-3.5-flash , gemini-3.5-flash-lite ")
     assert settings.chat_models == ["gemini-3.5-flash", "gemini-3.5-flash-lite"]
     assert settings.provider_label == "Gemini 3.5 Flash"
+
+
+@pytest.mark.anyio
+async def test_complete_json_asks_for_json_mode_and_parses_the_object():
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return _chat_reply('{"summary": "ok", "risks": []}')
+
+    data = await provider(handler).complete_json("sys", "usr")
+
+    assert data == {"summary": "ok", "risks": []}
+    assert bodies[0]["response_format"] == {"type": "json_object"}
+    assert bodies[0]["messages"][0] == {"role": "system", "content": "sys"}
+
+
+@pytest.mark.anyio
+async def test_plain_complete_does_not_ask_for_json_mode():
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return _chat_reply("prose")
+
+    await provider(handler).complete("s", "u")
+    assert "response_format" not in bodies[0]
+
+
+@pytest.mark.anyio
+async def test_complete_json_falls_back_when_a_model_is_busy():
+    tried = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        tried.append((body["model"], body["response_format"]["type"]))
+        if body["model"] == "busy-model":
+            return httpx.Response(503, json={"error": {}})
+        return _chat_reply('{"from": "backup"}')
+
+    data = await provider(handler, chat_models=["busy-model", "backup-model"]).complete_json("s", "u")
+    assert data == {"from": "backup"}
+    assert tried == [("busy-model", "json_object"), ("backup-model", "json_object")]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("content", ["not json at all", "[1, 2]", '{"cut": "off'])
+async def test_complete_json_reports_non_object_replies(content):
+    with pytest.raises(LLMBadJSON) as exc:
+        await provider(lambda r: _chat_reply(content)).complete_json("s", "u")
+    assert (exc.value.status, exc.value.code) == (502, "llm_error")
+    assert exc.value.detail

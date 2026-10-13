@@ -54,6 +54,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             "max_documents": settings.max_documents,
             "max_file_mb": settings.max_file_mb,
             "max_pages": settings.max_pages,
+            "contract_max_pages": settings.contract_max_pages,
             "provider_label": settings.provider_label,
         }
 
