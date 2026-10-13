@@ -34,6 +34,8 @@ function statusText(status: UploadStatus): string {
   }
 }
 
+const extension = (name: string) => /\.([^.]+)$/.exec(name)?.[1].slice(0, 4).toUpperCase() ?? "FILE";
+
 const busy = (s: UploadStatus) => s.kind === "queued" || s.kind === "uploading" || s.kind === "processing";
 
 export function DocumentPanel(props: Props) {
@@ -135,7 +137,7 @@ export function DocumentPanel(props: Props) {
           {uploads.map(({ key, file, status }) => (
             <li key={key} className={styles.doc} data-status={status.kind}>
               <span className={styles.docIcon} aria-hidden="true">
-                PDF
+                {extension(file.name)}
               </span>
               <div className={styles.docBody}>
                 <span className={styles.docName} title={file.name}>

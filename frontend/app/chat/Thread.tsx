@@ -44,11 +44,17 @@ export function Thread({ turns, fileUrls }: Props) {
       </ol>
       <div ref={endRef} />
       <p className="visually-hidden" aria-live="polite">
-        {last?.status.kind === "answered" && `Answer: ${last.status.response.answer}`}
+        {last?.status.kind === "answered" && `Answer: ${spoken(last.status.response)}`}
         {last?.status.kind === "failed" && `Error: ${last.status.message}`}
       </p>
     </>
   );
+}
+
+function spoken({ answer, citations }: AskResponse): string {
+  return parseAnswer(answer, citations)
+    .map((seg) => (seg.kind === "text" ? seg.text : `(${seg.citation.document_name}, page ${seg.citation.page})`))
+    .join("");
 }
 
 function Answer({ response, fileUrls }: { response: AskResponse; fileUrls: Record<string, string> }) {
@@ -111,7 +117,7 @@ function Source({ id, citation, url }: { id: string; citation: Citation; url: st
         {url && (
           <a className={styles.openPage} href={`${url}#page=${citation.page}`} target="_blank" rel="noopener noreferrer">
             Open page {citation.page}
-            <span className="visually-hidden"> of {citation.document_name} in a new tab</span>
+            <span className="visually-hidden">{` of ${citation.document_name} in a new tab`}</span>
           </a>
         )}
       </figcaption>

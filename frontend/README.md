@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend
 
-## Getting Started
+Next.js App Router site for the AI demos. `/` lists the demos and `/chat` is
+Chat with your docs. The typed client for `docs/api.md` is in `lib/api.ts`.
 
-First, run the development server:
+## Run
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```sh
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Set `NEXT_PUBLIC_API_URL` to the backend base URL (see `.env.example`). Next
+inlines it at build time, so rebuild after changing it.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Mock mode
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+When `NEXT_PUBLIC_API_URL` is unset under `npm run dev`, or set to `mock` in
+any build, the app talks to an in-memory mock (`lib/mock.ts`) that follows the
+API contract. The first health check takes 2.5 seconds, so the "waking up"
+state shows. Questions that start with these commands return contract errors:
 
-## Learn More
+| Question starts with | Result |
+|---|---|
+| `!429` | `rate_limited` with `Retry-After: 30` |
+| `!expire` | the session is dropped and the call returns `session_not_found` |
+| `!quota` | `llm_quota` |
+| `!none` | an answer with no citations |
 
-To learn more about Next.js, take a look at the following resources:
+A production build with `NEXT_PUBLIC_API_URL` unset shows a configuration
+error instead of falling back to the mock.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Check
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```sh
+npm run lint
+npm test
+npm run build
+```

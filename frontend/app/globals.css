@@ -7,11 +7,12 @@
   --rule: #d3dbe1;
   --mark: #ffe35a;
   --mark-ink: #15212b;
+  --mark-soft: color-mix(in srgb, var(--mark) 40%, transparent);
+  --mark-quote: color-mix(in srgb, var(--mark) 55%, transparent);
   --link: #1d4bc4;
   --focus: #1d4bc4;
   --danger: #a8261b;
   --danger-surface: #fbeceb;
-  --ok: #1f6b45;
 
   --radius-s: 4px;
   --radius-m: 10px;
@@ -30,11 +31,12 @@
     --rule: #2a3843;
     --mark: #e6c93c;
     --mark-ink: #12181d;
+    --mark-soft: color-mix(in srgb, var(--mark) 20%, transparent);
+    --mark-quote: color-mix(in srgb, var(--mark) 24%, transparent);
     --link: #93b2ff;
     --focus: #93b2ff;
     --danger: #ff9b8f;
     --danger-surface: #3a1d1b;
-    --ok: #7fd6a6;
     --shadow-lift: 0 1px 0 rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
   }
 }
