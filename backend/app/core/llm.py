@@ -1,0 +1,149 @@
+import logging
+import re
+import zlib
+from typing import Optional, Protocol
+
+import httpx
+import numpy as np
+
+from app.core.config import Settings
+from app.core.errors import AppError
+
+logger = logging.getLogger(__name__)
+
+EMBED_BATCH_SIZE = 100
+FAKE_DIM = 256
+
+
+class LLMError(AppError):
+    def __init__(self, message: str = "The AI provider failed. Please try again.") -> None:
+        super().__init__(502, "llm_error", message)
+
+
+class LLMQuotaError(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            503,
+            "llm_quota",
+            "The demo's free AI quota is used up for now. Please try again later.",
+        )
+
+
+class LLMProvider(Protocol):
+    async def embed(self, texts: list[str]) -> np.ndarray: ...
+
+    async def complete(self, system: str, user: str) -> str: ...
+
+    async def aclose(self) -> None: ...
+
+
+class OpenAICompatProvider:
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        chat_model: str,
+        embed_model: str,
+        embed_dimensions: Optional[int] = None,
+        transport: Optional[httpx.AsyncBaseTransport] = None,
+    ) -> None:
+        self._chat_model = chat_model
+        self._embed_model = embed_model
+        self._embed_dimensions = embed_dimensions
+        self._client = httpx.AsyncClient(
+            base_url=base_url,
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=httpx.Timeout(60.0, connect=10.0),
+            transport=transport,
+        )
+
+    async def aclose(self) -> None:
+        await self._client.aclose()
+
+    async def embed(self, texts: list[str]) -> np.ndarray:
+        rows: list[list[float]] = []
+        for start in range(0, len(texts), EMBED_BATCH_SIZE):
+            batch = texts[start : start + EMBED_BATCH_SIZE]
+            body: dict = {"model": self._embed_model, "input": batch}
+            if self._embed_dimensions is not None:
+                body["dimensions"] = self._embed_dimensions
+            data = await self._post("embeddings", body)
+            try:
+                items = sorted(data["data"], key=lambda item: item["index"])
+                vectors = [item["embedding"] for item in items]
+            except (KeyError, TypeError) as exc:
+                raise LLMError() from exc
+            if len(vectors) != len(batch):
+                logger.error("embeddings: sent %d inputs, got %d vectors", len(batch), len(vectors))
+                raise LLMError()
+            rows.extend(vectors)
+        return np.asarray(rows, dtype=np.float32)
+
+    async def complete(self, system: str, user: str) -> str:
+        data = await self._post(
+            "chat/completions",
+            {
+                "model": self._chat_model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                "temperature": 0.2,
+            },
+        )
+        try:
+            content = data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMError() from exc
+        if not isinstance(content, str) or not content.strip():
+            raise LLMError()
+        return content.strip()
+
+    async def _post(self, path: str, body: dict) -> dict:
+        try:
+            response = await self._client.post(path, json=body)
+        except httpx.HTTPError as exc:
+            logger.warning("LLM request to %s failed: %r", path, exc)
+            raise LLMError() from exc
+        if response.status_code == 429:
+            raise LLMQuotaError()
+        if response.is_error:
+            logger.warning(
+                "LLM %s returned %d: %s", path, response.status_code, response.text[:500]
+            )
+            raise LLMError()
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise LLMError() from exc
+
+
+class FakeProvider:
+    """Offline provider. Embeddings are hashed bag-of-words, so texts that share
+    words really do score higher; the answer always cites source [1]."""
+
+    async def aclose(self) -> None:
+        pass
+
+    async def embed(self, texts: list[str]) -> np.ndarray:
+        vectors = np.zeros((len(texts), FAKE_DIM), dtype=np.float32)
+        for row, text in enumerate(texts):
+            for token in re.findall(r"\w+", text.lower()):
+                vectors[row, zlib.crc32(token.encode()) % FAKE_DIM] += 1.0
+        return vectors
+
+    async def complete(self, system: str, user: str) -> str:
+        return "This offline demo answer is drawn from the most relevant passage [1]."
+
+
+def get_provider(settings: Settings) -> LLMProvider:
+    if settings.llm_provider == "fake":
+        return FakeProvider()
+    return OpenAICompatProvider(
+        base_url=settings.llm_base_url,
+        api_key=settings.llm_api_key,
+        chat_model=settings.chat_model,
+        embed_model=settings.embed_model,
+        embed_dimensions=settings.embed_dimensions,
+    )
