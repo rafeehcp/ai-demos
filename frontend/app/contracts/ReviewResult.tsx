@@ -101,6 +101,7 @@ export function ReviewResult({ result, fileUrl, onReset }: Props) {
               <Item
                 key={i}
                 title={risk.title}
+                headingLevel={4}
                 body={risk.explanation}
                 evidence={risk.evidence}
                 fileUrl={fileUrl}
@@ -128,6 +129,7 @@ export function ReviewResult({ result, fileUrl, onReset }: Props) {
                   <Item
                     key={i}
                     title={clause.title}
+                    headingLevel={5}
                     body={clause.plain_english}
                     evidence={clause.evidence}
                     fileUrl={fileUrl}
@@ -165,14 +167,25 @@ function KeyTermRows({ term, fileUrl }: { term: ContractReview["key_terms"][numb
   );
 }
 
-function Item(props: { title: string; body: string; evidence: EvidenceData; fileUrl: string; badge?: ReactNode }) {
+type ItemProps = {
+  title: string;
+  /** Risks sit directly under their section heading; clauses sit under a kind heading. */
+  headingLevel: 4 | 5;
+  body: string;
+  evidence: EvidenceData;
+  fileUrl: string;
+  badge?: ReactNode;
+};
+
+function Item(props: ItemProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const Heading = props.headingLevel === 4 ? "h4" : "h5";
   return (
     <li className={styles.item}>
       <div className={styles.itemHead}>
         {props.badge}
-        <h5 className={styles.itemTitle}>{props.title}</h5>
+        <Heading className={styles.itemTitle}>{props.title}</Heading>
         <EvidenceChip evidence={props.evidence} expanded={open} controls={panelId} onToggle={() => setOpen(!open)} />
       </div>
       <p className={styles.itemBody}>{props.body}</p>
