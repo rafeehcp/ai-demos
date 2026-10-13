@@ -12,6 +12,7 @@ from app.core.ratelimit import RateLimiter
 from app.core.sessions import SessionStore
 from app.demos.chat_docs.router import ChatState
 from app.demos.chat_docs.router import router as chat_docs_router
+from app.demos.contracts.router import router as contracts_router
 
 
 def create_app(settings: Optional[Settings] = None) -> FastAPI:
@@ -59,4 +60,5 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         }
 
     app.include_router(chat_docs_router)
+    app.include_router(contracts_router)
     return app
