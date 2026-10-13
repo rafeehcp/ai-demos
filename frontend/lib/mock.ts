@@ -7,11 +7,14 @@
 //   !expire   drops the session, then session_not_found
 //   !quota    llm_quota
 //   !none     an answer with no citations
+//
+// A contract review returns MOCK_REVIEW. Upload a file named error.pdf to get llm_error.
 
-import type { AskResponse, Citation, Config, DocumentInfo, Transport, TransportResponse } from "./api";
+import type { AskResponse, Citation, Config, DocumentInfo, ReviewResponse, Transport, TransportResponse } from "./api";
+import { MOCK_REVIEW } from "./mock-review";
 import { countPdfPages } from "./pdf";
 
-const config: Config = { max_documents: 3, max_file_mb: 10, max_pages: 100, provider_label: "Mock provider" };
+const config: Config = { max_documents: 3, max_file_mb: 10, max_pages: 100, contract_max_pages: 40, provider_label: "Mock provider" };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const id = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
@@ -73,6 +76,27 @@ export function mockTransport(): Transport {
       const sessionId = id("s");
       sessions.set(sessionId, []);
       return json(201, { session_id: sessionId });
+    }
+
+    if (method === "POST" && path === "/api/contracts/review") {
+      const file = req.form?.get("file");
+      if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".pdf")) {
+        return fail(400, "not_a_pdf", "That file isn't a PDF. Please upload a .pdf file.");
+      }
+      for (let i = 1; i <= 10; i++) {
+        await sleep(40);
+        req.onUploadProgress?.(i / 10);
+      }
+      await sleep(4000);
+      if (file.name.toLowerCase() === "error.pdf") {
+        return fail(502, "llm_error", "The AI model returned a review the app couldn't read. Please try again.");
+      }
+      const response: ReviewResponse = {
+        document_name: file.name,
+        pages: (await countPdfPages(file)) ?? 1,
+        review: MOCK_REVIEW,
+      };
+      return json(200, response);
     }
 
     const m = path.match(/^\/api\/sessions\/([^/]+)\/(documents|ask)(?:\/([^/]+))?$/);
