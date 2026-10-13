@@ -47,11 +47,11 @@ Reply with one JSON object and nothing else, shaped like this example:
 
 Rules:
 - Every quote is copied character for character from a single page of the contract, 10 to 300 characters long. Do not paraphrase, shorten, add ellipses, or join text from different places. "page" is the N of the "=== Page N ===" line above the quoted text.
-- clauses: the clauses a signer should know about, at most one per topic. "kind" is one of: {", ".join(k.value for k in ClauseKind)}. Use "other" when none fits.
-- risks: terms that are one-sided, unusual, open-ended, or could cost a party money, rights or flexibility. "severity" is "high", "medium" or "low". Say which party bears the risk.
-- key_terms: dates, durations, amounts of money, notice periods and renewal terms, with the value as the contract states it.
+- clauses: one entry for each of these kinds the contract covers: {", ".join(k.value for k in ClauseKind if k is not ClauseKind.other)}. Add "other" entries for any further clause a signer should know about.
+- risks: every term a careful lawyer would flag for either party, typically 4 to 10: terms that are one-sided, unusual, open-ended, or could cost a party money, rights or flexibility. Check payment, termination, renewal, liability, indemnity, intellectual property and restrictions on future work. "severity" is "high", "medium" or "low". Say which party bears the risk.
+- key_terms: every date, duration, amount of money, fee, notice period and renewal term, with the value as the contract states it.
 - Use only the contract. Leave out anything it doesn't say.
-- Every text value is plain prose: no Markdown, asterisks, bullet points or headings."""
+- Every text value is plain prose: no Markdown, asterisks, bullet points or headings. Titles and labels are short and in sentence case."""
 
 _RETRY_NOTE = "\n\nYour previous reply was rejected: {problem}\nReply again with one JSON object that follows the rules."
 _MAX_ERRORS_IN_RETRY = 8
