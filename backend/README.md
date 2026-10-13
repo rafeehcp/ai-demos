@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI service for the demos. Demo 1, Chat with your docs, implements [docs/api.md](../docs/api.md). State lives in memory, so a restart clears every session.
+FastAPI service for the demos. Chat with your docs implements [docs/api.md](../docs/api.md). Contract reviewer implements [docs/contract-reviewer.md](../docs/contract-reviewer.md). State lives in memory, so a restart clears every session.
 
 ## Run locally
 
@@ -40,7 +40,7 @@ The API listens on http://localhost:8000. Check it with `curl localhost:8000/api
 | `EMBED_DIMENSIONS` | unset | Sent as `dimensions` when set. |
 | `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated frontend origins. |
 
-Limits (`MAX_SESSIONS`, `SESSION_TTL_MINUTES`, `MAX_DOCUMENTS`, `MAX_FILE_MB`, `MAX_PAGES`, `TOP_K`, `RATE_LIMIT_PER_MINUTE`) default to the table in [docs/design.md](../docs/design.md).
+Limits (`MAX_SESSIONS`, `SESSION_TTL_MINUTES`, `MAX_DOCUMENTS`, `MAX_FILE_MB`, `MAX_PAGES`, `TOP_K`, `RATE_LIMIT_PER_MINUTE`) default to the table in [docs/design.md](../docs/design.md). `CONTRACT_MAX_PAGES` (default 40) caps the contract reviewer, which sends the whole contract to the model in one call. `RATE_LIMIT_PER_MINUTE` counts requests to both demos together.
 
 ## Tests
 
@@ -49,6 +49,16 @@ Limits (`MAX_SESSIONS`, `SESSION_TTL_MINUTES`, `MAX_DOCUMENTS`, `MAX_FILE_MB`, `
 ```
 
 The tests use the fake provider and generate their PDFs, so they need no network access.
+
+## Sample contracts
+
+`scripts/sample_contracts.py` writes the invented contracts used by the demo and for checking review quality by hand:
+
+```sh
+.venv/Scripts/python scripts/sample_contracts.py ../frontend/public/samples
+```
+
+It writes `sample-lease.pdf`, which the frontend serves for its "Try a sample contract" button, and `sample-services-agreement.pdf`, a longer contract that isn't shipped.
 
 ## Deploy
 
