@@ -49,10 +49,11 @@ def test_quote_missing_from_the_document_is_unverified(page, quote):
     assert result.page == page
 
 
-def test_quote_on_several_other_pages_is_not_guessed():
-    pages = ["Cover page.", "Payment is due in 30 days.", "Payment is due in 30 days."]
-    result = checked(1, "Payment is due in 30 days.", pages)
-    assert (result.page, result.verified) == (1, False)
+@pytest.mark.parametrize("cited, expected", [(1, 2), (5, 4), (3, 2)])
+def test_quote_on_several_other_pages_moves_to_the_nearest(cited, expected):
+    pages = ["Cover page.", "Payment is due in 30 days.", "Signatures.", "Payment is due in 30 days.", "Annex."]
+    result = checked(cited, "Payment is due in 30 days.", pages)
+    assert (result.page, result.verified) == (expected, True)
 
 
 @pytest.mark.parametrize(

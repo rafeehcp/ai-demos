@@ -119,9 +119,11 @@ def check_evidence(evidence: Evidence, normalized_pages: Sequence[str]) -> Evide
     if quote and 0 <= cited < len(normalized_pages) and quote in normalized_pages[cited]:
         return evidence.model_copy(update={"verified": True})
     elsewhere = [i for i, page in enumerate(normalized_pages) if i != cited and quote and quote in page]
-    if len(elsewhere) == 1:
-        return evidence.model_copy(update={"page": elsewhere[0] + 1, "verified": True})
-    return evidence.model_copy(update={"verified": False})
+    if not elsewhere:
+        return evidence.model_copy(update={"verified": False})
+    # Repeated boilerplate can match several pages; the one nearest the model's citation is the likeliest source.
+    nearest = min(elsewhere, key=lambda i: (abs(i - cited), i))
+    return evidence.model_copy(update={"page": nearest + 1, "verified": True})
 
 
 def verify_evidence(review: ContractReview, pages: Sequence[str]) -> ContractReview:
