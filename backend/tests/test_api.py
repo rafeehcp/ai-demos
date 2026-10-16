@@ -196,3 +196,9 @@ def test_cors_allows_configured_origin(make_client):
     assert response.headers["access-control-allow-origin"] == "https://demo.example"
     response = client.get("/api/health", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_ignores_a_trailing_slash_in_the_setting(make_client):
+    client = make_client(cors_origins="https://demo.example/")
+    response = client.get("/api/health", headers={"Origin": "https://demo.example"})
+    assert response.headers["access-control-allow-origin"] == "https://demo.example"
