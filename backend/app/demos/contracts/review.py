@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import unicodedata
 from typing import Sequence
 
@@ -59,6 +60,38 @@ _MAX_ERRORS_IN_RETRY = 8
 
 def build_user_prompt(pages: Sequence[str]) -> str:
     return "\n\n".join(f"=== Page {n} ===\n{text.strip()}" for n, text in enumerate(pages, start=1))
+
+
+_FIRST_PAGE = re.compile(r"=== Page 1 ===\n(.*?)(?:\n=== Page |\Z)", re.S)
+
+
+def fake_review(user: str) -> dict:
+    """The offline model's reply: a fixed review whose quotes come from page 1 of the prompt."""
+    match = _FIRST_PAGE.search(user)
+    words = (match.group(1) if match else user).split()
+    evidence = {"page": 1, "quote": " ".join(words[:12])}
+    return {
+        "summary": "This is an offline review. It cites the opening words of the first page.",
+        "contract_type": "Contract",
+        "parties": [{"name": "First party", "role": "Party"}],
+        "key_terms": [{"label": "Opening words", "value": " ".join(words[:4]), "evidence": evidence}],
+        "clauses": [
+            {
+                "kind": "other",
+                "title": "Opening",
+                "plain_english": "The contract opens with these words.",
+                "evidence": evidence,
+            }
+        ],
+        "risks": [
+            {
+                "severity": "low",
+                "title": "Offline review",
+                "explanation": "No model read this contract, so treat every finding as a placeholder.",
+                "evidence": evidence,
+            }
+        ],
+    }
 
 
 async def review_contract(llm: LLMProvider, pages: Sequence[str]) -> ContractReview:

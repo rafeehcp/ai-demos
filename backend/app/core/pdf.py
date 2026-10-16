@@ -11,6 +11,18 @@ logger = logging.getLogger(__name__)
 
 def extract_pages(data: bytes, *, max_mb: int, max_pages: int) -> list[str]:
     """Text of each page, in order. Raises AppError for anything the visitor must fix."""
+    texts = read_pages(data, max_mb=max_mb, max_pages=max_pages)
+    if not any(t.strip() for t in texts):
+        raise AppError(
+            400,
+            "no_text",
+            "This PDF has no selectable text. Scanned documents aren't supported.",
+        )
+    return texts
+
+
+def read_pages(data: bytes, *, max_mb: int, max_pages: int) -> list[str]:
+    """Like extract_pages, but a page without a text layer is an empty string rather than an error."""
     if len(data) > max_mb * 1024 * 1024:
         raise AppError(413, "file_too_large", f"PDFs must be {max_mb} MB or smaller.")
     if b"%PDF-" not in data[:1024]:
@@ -29,14 +41,7 @@ def extract_pages(data: bytes, *, max_mb: int, max_pages: int) -> list[str]:
     if page_count > max_pages:
         raise AppError(413, "file_too_large", f"PDFs must have {max_pages} pages or fewer.")
 
-    texts = [_page_text(page) for page in pages]
-    if not any(t.strip() for t in texts):
-        raise AppError(
-            400,
-            "no_text",
-            "This PDF has no selectable text. Scanned documents aren't supported.",
-        )
-    return texts
+    return [_page_text(page) for page in pages]
 
 
 def _page_text(page) -> str:

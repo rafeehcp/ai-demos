@@ -256,3 +256,32 @@ async def test_complete_json_reports_non_object_replies(content):
         await provider(lambda r: _chat_reply(content)).complete_json("s", "u")
     assert (exc.value.status, exc.value.code) == (502, "llm_error")
     assert exc.value.detail
+
+
+@pytest.mark.anyio
+async def test_complete_json_sends_images_as_data_url_parts_after_the_text():
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return _chat_reply('{"ok": true}')
+
+    images = ["data:image/png;base64,iVBORw0KGgo=", "data:image/jpeg;base64,/9j/4AAQ"]
+    await provider(handler).complete_json("sys", "read these", images)
+
+    assert bodies[0]["messages"][1] == {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "read these"},
+            {"type": "image_url", "image_url": {"url": images[0]}},
+            {"type": "image_url", "image_url": {"url": images[1]}},
+        ],
+    }
+    assert bodies[0]["response_format"] == {"type": "json_object"}
+
+
+@pytest.mark.anyio
+async def test_fake_json_reply_is_chosen_by_system_prompt():
+    fake = FakeProvider({"a": lambda user: {"from": "a", "user": user}, "b": lambda user: {"from": "b"}})
+    assert await fake.complete_json("a", "hi", ["data:image/png;base64,x"]) == {"from": "a", "user": "hi"}
+    assert await fake.complete_json("b", "hi") == {"from": "b"}

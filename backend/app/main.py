@@ -12,6 +12,8 @@ from app.core.ratelimit import RateLimiter
 from app.core.sessions import SessionStore
 from app.demos.chat_docs.router import ChatState
 from app.demos.chat_docs.router import router as chat_docs_router
+from app.demos.contracts.review import SYSTEM_PROMPT as CONTRACT_PROMPT
+from app.demos.contracts.review import fake_review
 from app.demos.contracts.router import router as contracts_router
 
 
@@ -28,7 +30,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     app = FastAPI(title="AI demos", lifespan=lifespan)
     app.state.settings = settings
-    app.state.llm = get_provider(settings)
+    app.state.llm = get_provider(settings, {CONTRACT_PROMPT: fake_review})
     app.state.rate_limiter = RateLimiter(settings.rate_limit_per_minute)
     app.state.chat_sessions = SessionStore(
         ChatState,
