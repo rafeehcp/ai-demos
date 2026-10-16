@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI service for the demos. Chat with your docs implements [docs/api.md](../docs/api.md). Contract reviewer implements [docs/contract-reviewer.md](../docs/contract-reviewer.md). State lives in memory, so a restart clears every session.
+FastAPI service for the demos. Chat with your docs implements [docs/api.md](../docs/api.md). Contract reviewer implements [docs/contract-reviewer.md](../docs/contract-reviewer.md). Invoice → JSON implements [docs/invoice-extractor.md](../docs/invoice-extractor.md). State lives in memory, so a restart clears every session.
 
 ## Run locally
 
@@ -40,7 +40,7 @@ The API listens on http://localhost:8000. Check it with `curl localhost:8000/api
 | `EMBED_DIMENSIONS` | unset | Sent as `dimensions` when set. |
 | `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated frontend origins. |
 
-Limits (`MAX_SESSIONS`, `SESSION_TTL_MINUTES`, `MAX_DOCUMENTS`, `MAX_FILE_MB`, `MAX_PAGES`, `TOP_K`, `RATE_LIMIT_PER_MINUTE`) default to the table in [docs/design.md](../docs/design.md). `CONTRACT_MAX_PAGES` (default 40) caps the contract reviewer, which sends the whole contract to the model in one call. `RATE_LIMIT_PER_MINUTE` counts requests to both demos together.
+Limits (`MAX_SESSIONS`, `SESSION_TTL_MINUTES`, `MAX_DOCUMENTS`, `MAX_FILE_MB`, `MAX_PAGES`, `TOP_K`, `RATE_LIMIT_PER_MINUTE`) default to the table in [docs/design.md](../docs/design.md). `CONTRACT_MAX_PAGES` (default 40) caps the contract reviewer, which sends the whole contract to the model in one call. `INVOICE_MAX_PAGES` (default 5) caps each invoice PDF, since every page goes to the model as an image. `INVOICE_MAX_FILES` (default 5) is the batch size the frontend allows; the backend takes one file per request. `RATE_LIMIT_PER_MINUTE` counts requests to all demos together.
 
 ## Tests
 
@@ -59,6 +59,23 @@ The tests use the fake provider and generate their PDFs, so they need no network
 ```
 
 It writes `sample-lease.pdf`, which the frontend serves for its "Try a sample contract" button, and `sample-services-agreement.pdf`, a longer contract that isn't shipped.
+
+## Sample invoices
+
+`scripts/sample_invoices.py` writes the invented invoices from the values printed on them. The first folder gets the two the frontend's "Try sample invoices" button uploads; the second gets two more for checking by hand:
+
+```sh
+.venv/Scripts/python scripts/sample_invoices.py ../frontend/public/samples samples-out
+```
+
+`sample-invoice.pdf` is a clean UK invoice. `sample-receipt.jpg` is a photographed receipt whose subtotal is off by 1.00, so the subtotal check fails. `extra-discount-two-taxes.pdf` is a Canadian invoice with a discount, GST and PST. `extra-eur-scan.png` is a German invoice with day-first dates and comma decimals.
+
+`scripts/invoice_accuracy.py` sends every sample to the real model and scores each field against what is printed. Copy the shipped samples into the same folder first:
+
+```sh
+cp ../frontend/public/samples/sample-invoice.pdf ../frontend/public/samples/sample-receipt.jpg samples-out/
+.venv/Scripts/python scripts/invoice_accuracy.py samples-out
+```
 
 ## Deploy
 

@@ -1,4 +1,5 @@
-from typing import Optional
+import copy
+from typing import Optional, Sequence
 
 import pytest
 from fastapi.testclient import TestClient
@@ -68,3 +69,20 @@ def new_session(client: TestClient) -> str:
     response = client.post("/api/sessions")
     assert response.status_code == 201
     return response.json()["session_id"]
+
+
+class ScriptedJSON:
+    """Stands in for complete_json: returns or raises each scripted reply in turn."""
+
+    def __init__(self, *replies):
+        self.replies = list(replies)
+        self.prompts: list[str] = []
+        self.images: list[Sequence[str]] = []
+
+    async def __call__(self, system: str, user: str, images: Sequence[str] = ()) -> dict:
+        self.prompts.append(user)
+        self.images.append(images)
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return copy.deepcopy(reply)

@@ -1,6 +1,6 @@
 # API contract: Chat with your docs
 
-The contract reviewer's endpoint, `POST /api/contracts/review`, is specified in [contract-reviewer.md](contract-reviewer.md). It uses the same error shape and codes.
+The contract reviewer's endpoint, `POST /api/contracts/review`, is specified in [contract-reviewer.md](contract-reviewer.md). The invoice extractor's endpoint, `POST /api/invoices/extract`, is specified in [invoice-extractor.md](invoice-extractor.md). Both use the same error shape and codes.
 
 Base URL comes from `NEXT_PUBLIC_API_URL` on the frontend (for example `http://localhost:8000`). All bodies are JSON except the upload, which is `multipart/form-data`.
 
@@ -15,6 +15,7 @@ Every error response has this shape and a 4xx/5xx status:
 | Status | `code` | When |
 |---|---|---|
 | 400 | `not_a_pdf` | Upload is not a PDF |
+| 400 | `unsupported_file` | Invoice upload is not a PDF, PNG, JPEG or WebP file, or the image can't be read |
 | 400 | `no_text` | PDF has no extractable text (for example a scanned image) |
 | 400 | `empty_question` | Question is blank or longer than 1,000 characters |
 | 404 | `session_not_found` | Session id unknown or expired |
@@ -34,7 +35,15 @@ Every error response has this shape and a 4xx/5xx status:
 Limits the UI shows to the visitor.
 
 ```json
-{ "max_documents": 3, "max_file_mb": 10, "max_pages": 100, "contract_max_pages": 40, "provider_label": "Gemini 3.5 Flash" }
+{
+  "max_documents": 3,
+  "max_file_mb": 10,
+  "max_pages": 100,
+  "contract_max_pages": 40,
+  "invoice_max_files": 5,
+  "invoice_max_pages": 5,
+  "provider_label": "Gemini 3.5 Flash"
+}
 ```
 
 ## POST /api/sessions

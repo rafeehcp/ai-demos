@@ -7,6 +7,8 @@ export type Config = {
   max_file_mb: number;
   max_pages: number;
   contract_max_pages: number;
+  invoice_max_files: number;
+  invoice_max_pages: number;
   provider_label: string;
 };
 
@@ -61,8 +63,46 @@ export type ContractReview = {
 
 export type ReviewResponse = { document_name: string; pages: number; review: ContractReview };
 
+export type Party = { name: string; address: string | null; tax_id: string | null; email: string | null };
+
+/** Money, quantities and rates are decimal strings such as "1450.00", never floats. */
+export type LineItem = { description: string; quantity: string | null; unit_price: string | null; amount: string };
+
+export type Tax = { label: string; rate_percent: string | null; amount: string };
+
+export const CHECK_NAMES = ["line_amounts", "subtotal", "total", "dates", "currency"] as const;
+
+export type CheckName = (typeof CHECK_NAMES)[number];
+
+export type Check = {
+  name: CheckName;
+  status: "pass" | "fail" | "skipped";
+  expected: string | null;
+  actual: string | null;
+  detail: string;
+};
+
+export type Invoice = {
+  document_type: "invoice" | "receipt" | "credit_note" | "other";
+  vendor: Party | null;
+  customer: Party | null;
+  invoice_number: string | null;
+  issue_date: string | null;
+  due_date: string | null;
+  currency: string | null;
+  line_items: LineItem[];
+  subtotal: string | null;
+  taxes: Tax[];
+  discount: string | null;
+  total: string | null;
+  checks: Check[];
+};
+
+export type ExtractResponse = { file_name: string; invoice: Invoice };
+
 export type ErrorCode =
   | "not_a_pdf"
+  | "unsupported_file"
   | "no_text"
   | "empty_question"
   | "session_not_found"
@@ -146,6 +186,7 @@ export function xhrTransport(baseUrl: string): Transport {
 
 const KNOWN_CODES: ReadonlySet<string> = new Set<ErrorCode>([
   "not_a_pdf",
+  "unsupported_file",
   "no_text",
   "empty_question",
   "session_not_found",
@@ -231,6 +272,12 @@ export function createClient(transport: Transport) {
       const form = new FormData();
       form.append("file", file);
       return call<ReviewResponse>({ method: "POST", path: "/api/contracts/review", form, onUploadProgress });
+    },
+
+    extractInvoice: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return call<ExtractResponse>({ method: "POST", path: "/api/invoices/extract", form });
     },
 
     ask: (sessionId: string, question: string) =>

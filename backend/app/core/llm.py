@@ -2,10 +2,11 @@ import json
 import logging
 import re
 import zlib
-from typing import Optional, Protocol, Sequence
+from typing import Callable, Mapping, Optional, Protocol, Sequence, TypeVar
 
 import httpx
 import numpy as np
+from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.core.errors import AppError
@@ -14,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 EMBED_BATCH_SIZE = 100
 FAKE_DIM = 256
-_FAKE_FIRST_PAGE = re.compile(r"=== Page 1 ===\n(.*?)(?:\n=== Page |\Z)", re.S)
 
 
 class LLMError(AppError):
@@ -51,9 +51,44 @@ class LLMProvider(Protocol):
 
     async def complete(self, system: str, user: str) -> str: ...
 
-    async def complete_json(self, system: str, user: str) -> dict: ...
+    async def complete_json(self, system: str, user: str, images: Sequence[str] = ()) -> dict:
+        """`images` are data URLs, sent after the text in the user message."""
+        ...
 
     async def aclose(self) -> None: ...
+
+
+Model = TypeVar("Model", bound=BaseModel)
+
+_RETRY_NOTE = "\n\nYour previous reply was rejected: {problem}\nReply again with one JSON object that follows the rules."
+_MAX_ERRORS_IN_RETRY = 8
+
+
+async def complete_validated(
+    llm: LLMProvider, schema: type[Model], system: str, user: str, images: Sequence[str] = ()
+) -> Model:
+    """A JSON-mode reply parsed into `schema`. A malformed reply is retried once with the reason appended."""
+    prompt = user
+    for attempt in (1, 2):
+        try:
+            return schema.model_validate(await llm.complete_json(system, prompt, images))
+        except LLMBadJSON as exc:
+            problem = exc.detail
+        except ValidationError as exc:
+            problem = describe_validation_error(exc)
+        logger.warning("%s attempt %d rejected: %s", schema.__name__, attempt, problem)
+        prompt = user + _RETRY_NOTE.format(problem=problem)
+    raise LLMError("The AI model returned a reply the app couldn't read. Please try again.")
+
+
+def describe_validation_error(exc: ValidationError) -> str:
+    errors = exc.errors(include_url=False)
+    parts = [
+        f"{'.'.join(str(p) for p in e['loc']) or 'reply'}: {e['msg']}" for e in errors[:_MAX_ERRORS_IN_RETRY]
+    ]
+    if len(errors) > _MAX_ERRORS_IN_RETRY:
+        parts.append(f"and {len(errors) - _MAX_ERRORS_IN_RETRY} more")
+    return "; ".join(parts)
 
 
 class OpenAICompatProvider:
@@ -103,8 +138,8 @@ class OpenAICompatProvider:
     async def complete(self, system: str, user: str) -> str:
         return await self._first_available(system, user, json_mode=False)
 
-    async def complete_json(self, system: str, user: str) -> dict:
-        content = await self._first_available(system, user, json_mode=True)
+    async def complete_json(self, system: str, user: str, images: Sequence[str] = ()) -> dict:
+        content = await self._first_available(system, _user_content(user, images), json_mode=True)
         try:
             data = json.loads(content)
         except ValueError as exc:
@@ -113,7 +148,7 @@ class OpenAICompatProvider:
             raise LLMBadJSON("The reply was JSON but not an object.")
         return data
 
-    async def _first_available(self, system: str, user: str, *, json_mode: bool) -> str:
+    async def _first_available(self, system: str, user: str | list[dict], *, json_mode: bool) -> str:
         # Free tiers overload or rate-limit individual models, so fall through the list.
         failures: list[LLMError] = []
         for model in self._chat_models:
@@ -126,7 +161,7 @@ class OpenAICompatProvider:
             raise LLMQuotaError()
         raise LLMError("The AI model is busy right now. Please try again in a minute.")
 
-    async def _complete_with(self, model: str, system: str, user: str, *, json_mode: bool) -> str:
+    async def _complete_with(self, model: str, system: str, user: str | list[dict], *, json_mode: bool) -> str:
         body: dict = {
             "model": model,
             "messages": [
@@ -173,9 +208,22 @@ class OpenAICompatProvider:
             raise LLMError() from exc
 
 
+def _user_content(text: str, images: Sequence[str]) -> str | list[dict]:
+    if not images:
+        return text
+    return [{"type": "text", "text": text}] + [{"type": "image_url", "image_url": {"url": url}} for url in images]
+
+
+FakeJSONReply = Callable[[str], dict]
+
+
 class FakeProvider:
     """Offline provider. Embeddings are hashed bag-of-words, so texts that share
-    words really do score higher; the answer always cites source [1]."""
+    words really do score higher; the answer always cites source [1].
+    complete_json answers with the reply registered for the system prompt."""
+
+    def __init__(self, json_replies: Optional[Mapping[str, FakeJSONReply]] = None) -> None:
+        self._json_replies = dict(json_replies or {})
 
     async def aclose(self) -> None:
         pass
@@ -190,38 +238,13 @@ class FakeProvider:
     async def complete(self, system: str, user: str) -> str:
         return "This offline demo answer is drawn from the most relevant passage [1]."
 
-    async def complete_json(self, system: str, user: str) -> dict:
-        """A fixed contract review whose quotes come from page 1 of the prompt."""
-        match = _FAKE_FIRST_PAGE.search(user)
-        words = (match.group(1) if match else user).split()
-        evidence = {"page": 1, "quote": " ".join(words[:12])}
-        return {
-            "summary": "This is an offline review. It cites the opening words of the first page.",
-            "contract_type": "Contract",
-            "parties": [{"name": "First party", "role": "Party"}],
-            "key_terms": [{"label": "Opening words", "value": " ".join(words[:4]), "evidence": evidence}],
-            "clauses": [
-                {
-                    "kind": "other",
-                    "title": "Opening",
-                    "plain_english": "The contract opens with these words.",
-                    "evidence": evidence,
-                }
-            ],
-            "risks": [
-                {
-                    "severity": "low",
-                    "title": "Offline review",
-                    "explanation": "No model read this contract, so treat every finding as a placeholder.",
-                    "evidence": evidence,
-                }
-            ],
-        }
+    async def complete_json(self, system: str, user: str, images: Sequence[str] = ()) -> dict:
+        return self._json_replies[system](user)
 
 
-def get_provider(settings: Settings) -> LLMProvider:
+def get_provider(settings: Settings, fake_json_replies: Mapping[str, FakeJSONReply]) -> LLMProvider:
     if settings.llm_provider == "fake":
-        return FakeProvider()
+        return FakeProvider(fake_json_replies)
     return OpenAICompatProvider(
         base_url=settings.llm_base_url,
         api_key=settings.llm_api_key,
