@@ -8,13 +8,34 @@
 //   !quota    llm_quota
 //   !none     an answer with no citations
 //
-// A contract review returns MOCK_REVIEW. Upload a file named error.pdf to get llm_error.
+// A contract review returns MOCK_REVIEW. An invoice extraction returns
+// MOCK_RECEIPT for images and MOCK_INVOICE for PDFs. Upload a file named
+// error.pdf to get llm_error from either.
 
-import type { AskResponse, Citation, Config, DocumentInfo, ReviewResponse, Transport, TransportResponse } from "./api";
+import type {
+  AskResponse,
+  Citation,
+  Config,
+  DocumentInfo,
+  ExtractResponse,
+  ReviewResponse,
+  Transport,
+  TransportResponse,
+} from "./api";
+import { fileKind } from "./invoices";
+import { MOCK_INVOICE, MOCK_RECEIPT } from "./mock-invoices";
 import { MOCK_REVIEW } from "./mock-review";
 import { countPdfPages } from "./pdf";
 
-const config: Config = { max_documents: 3, max_file_mb: 10, max_pages: 100, contract_max_pages: 40, provider_label: "Mock provider" };
+const config: Config = {
+  max_documents: 3,
+  max_file_mb: 10,
+  max_pages: 100,
+  contract_max_pages: 40,
+  invoice_max_files: 5,
+  invoice_max_pages: 5,
+  provider_label: "Mock provider",
+};
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const id = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
@@ -76,6 +97,20 @@ export function mockTransport(): Transport {
       const sessionId = id("s");
       sessions.set(sessionId, []);
       return json(201, { session_id: sessionId });
+    }
+
+    if (method === "POST" && path === "/api/invoices/extract") {
+      const file = req.form?.get("file");
+      const kind = file instanceof File ? fileKind(file) : null;
+      if (!(file instanceof File) || kind === null) {
+        return fail(400, "unsupported_file", "That file type isn't supported. Upload a PDF, PNG, JPEG or WebP file.");
+      }
+      await sleep(2500);
+      if (file.name.toLowerCase() === "error.pdf") {
+        return fail(502, "llm_error", "The AI model returned a reply the app couldn't read. Please try again.");
+      }
+      const response: ExtractResponse = { file_name: file.name, invoice: kind === "image" ? MOCK_RECEIPT : MOCK_INVOICE };
+      return json(200, response);
     }
 
     if (method === "POST" && path === "/api/contracts/review") {
