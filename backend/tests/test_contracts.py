@@ -1,12 +1,10 @@
-import copy
-
 import pytest
 from pydantic import ValidationError
 
 from app.core.llm import LLMBadJSON
 from app.demos.contracts.review import check_evidence, normalize, sort_review
 from app.demos.contracts.schema import ContractReview, Evidence
-from tests.conftest import make_pdf, new_session, upload
+from tests.conftest import ScriptedJSON, make_pdf, new_session, upload
 from tests.test_api import error_of
 
 PAGES = [
@@ -119,21 +117,6 @@ def test_risks_sort_by_severity_then_page_and_clauses_by_kind():
 
 def review_pdf(client, data: bytes, name: str = "nda.pdf", headers=None, content_type="application/pdf"):
     return client.post("/api/contracts/review", files={"file": (name, data, content_type)}, headers=headers)
-
-
-class ScriptedJSON:
-    """Stands in for complete_json: returns or raises each scripted reply in turn."""
-
-    def __init__(self, *replies):
-        self.replies = list(replies)
-        self.prompts: list[str] = []
-
-    async def __call__(self, system: str, user: str) -> dict:
-        self.prompts.append(user)
-        reply = self.replies.pop(0)
-        if isinstance(reply, Exception):
-            raise reply
-        return copy.deepcopy(reply)
 
 
 def test_review_happy_path_with_the_fake_model(client):

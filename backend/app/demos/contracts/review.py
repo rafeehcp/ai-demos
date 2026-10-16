@@ -1,15 +1,10 @@
 import json
-import logging
 import re
 import unicodedata
 from typing import Sequence
 
-from pydantic import ValidationError
-
-from app.core.llm import LLMBadJSON, LLMError, LLMProvider
+from app.core.llm import LLMProvider, complete_validated
 from app.demos.contracts.schema import ClauseKind, ContractReview, Evidence
-
-logger = logging.getLogger(__name__)
 
 _EXAMPLE = {
     "summary": "2 to 4 plain sentences: what the contract is, who it binds, and what matters most.",
@@ -54,9 +49,6 @@ Rules:
 - Use only the contract. Leave out anything it doesn't say.
 - Every text value is plain prose: no Markdown, asterisks, bullet points or headings. Titles and labels are short and in sentence case."""
 
-_RETRY_NOTE = "\n\nYour previous reply was rejected: {problem}\nReply again with one JSON object that follows the rules."
-_MAX_ERRORS_IN_RETRY = 8
-
 
 def build_user_prompt(pages: Sequence[str]) -> str:
     return "\n\n".join(f"=== Page {n} ===\n{text.strip()}" for n, text in enumerate(pages, start=1))
@@ -95,31 +87,9 @@ def fake_review(user: str) -> dict:
 
 
 async def review_contract(llm: LLMProvider, pages: Sequence[str]) -> ContractReview:
-    """Ask the model for a review, retry once on a malformed reply, then check every quote."""
-    user = build_user_prompt(pages)
-    prompt = user
-    for attempt in (1, 2):
-        try:
-            review = ContractReview.model_validate(await llm.complete_json(SYSTEM_PROMPT, prompt))
-        except LLMBadJSON as exc:
-            problem = exc.detail
-        except ValidationError as exc:
-            problem = describe_validation_error(exc)
-        else:
-            return sort_review(verify_evidence(review, pages))
-        logger.warning("contract review attempt %d rejected: %s", attempt, problem)
-        prompt = user + _RETRY_NOTE.format(problem=problem)
-    raise LLMError("The AI model returned a review the app couldn't read. Please try again.")
-
-
-def describe_validation_error(exc: ValidationError) -> str:
-    errors = exc.errors(include_url=False)
-    parts = [
-        f"{'.'.join(str(p) for p in e['loc']) or 'reply'}: {e['msg']}" for e in errors[:_MAX_ERRORS_IN_RETRY]
-    ]
-    if len(errors) > _MAX_ERRORS_IN_RETRY:
-        parts.append(f"and {len(errors) - _MAX_ERRORS_IN_RETRY} more")
-    return "; ".join(parts)
+    """Ask the model for a review, then check every quote."""
+    review = await complete_validated(llm, ContractReview, SYSTEM_PROMPT, build_user_prompt(pages))
+    return sort_review(verify_evidence(review, pages))
 
 
 _QUOTE_CHARS = str.maketrans(

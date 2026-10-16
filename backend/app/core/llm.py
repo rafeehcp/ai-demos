@@ -2,10 +2,11 @@ import json
 import logging
 import re
 import zlib
-from typing import Callable, Mapping, Optional, Protocol, Sequence
+from typing import Callable, Mapping, Optional, Protocol, Sequence, TypeVar
 
 import httpx
 import numpy as np
+from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.core.errors import AppError
@@ -55,6 +56,39 @@ class LLMProvider(Protocol):
         ...
 
     async def aclose(self) -> None: ...
+
+
+Model = TypeVar("Model", bound=BaseModel)
+
+_RETRY_NOTE = "\n\nYour previous reply was rejected: {problem}\nReply again with one JSON object that follows the rules."
+_MAX_ERRORS_IN_RETRY = 8
+
+
+async def complete_validated(
+    llm: LLMProvider, schema: type[Model], system: str, user: str, images: Sequence[str] = ()
+) -> Model:
+    """A JSON-mode reply parsed into `schema`. A malformed reply is retried once with the reason appended."""
+    prompt = user
+    for attempt in (1, 2):
+        try:
+            return schema.model_validate(await llm.complete_json(system, prompt, images))
+        except LLMBadJSON as exc:
+            problem = exc.detail
+        except ValidationError as exc:
+            problem = describe_validation_error(exc)
+        logger.warning("%s attempt %d rejected: %s", schema.__name__, attempt, problem)
+        prompt = user + _RETRY_NOTE.format(problem=problem)
+    raise LLMError("The AI model returned a reply the app couldn't read. Please try again.")
+
+
+def describe_validation_error(exc: ValidationError) -> str:
+    errors = exc.errors(include_url=False)
+    parts = [
+        f"{'.'.join(str(p) for p in e['loc']) or 'reply'}: {e['msg']}" for e in errors[:_MAX_ERRORS_IN_RETRY]
+    ]
+    if len(errors) > _MAX_ERRORS_IN_RETRY:
+        parts.append(f"and {len(errors) - _MAX_ERRORS_IN_RETRY} more")
+    return "; ".join(parts)
 
 
 class OpenAICompatProvider:
