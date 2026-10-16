@@ -15,6 +15,9 @@ from app.demos.chat_docs.router import router as chat_docs_router
 from app.demos.contracts.review import SYSTEM_PROMPT as CONTRACT_PROMPT
 from app.demos.contracts.review import fake_review
 from app.demos.contracts.router import router as contracts_router
+from app.demos.invoices.extract import SYSTEM_PROMPT as INVOICE_PROMPT
+from app.demos.invoices.extract import fake_invoice
+from app.demos.invoices.router import router as invoices_router
 
 
 def create_app(settings: Optional[Settings] = None) -> FastAPI:
@@ -30,7 +33,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     app = FastAPI(title="AI demos", lifespan=lifespan)
     app.state.settings = settings
-    app.state.llm = get_provider(settings, {CONTRACT_PROMPT: fake_review})
+    app.state.llm = get_provider(settings, {CONTRACT_PROMPT: fake_review, INVOICE_PROMPT: fake_invoice})
     app.state.rate_limiter = RateLimiter(settings.rate_limit_per_minute)
     app.state.chat_sessions = SessionStore(
         ChatState,
@@ -58,9 +61,12 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             "max_file_mb": settings.max_file_mb,
             "max_pages": settings.max_pages,
             "contract_max_pages": settings.contract_max_pages,
+            "invoice_max_files": settings.invoice_max_files,
+            "invoice_max_pages": settings.invoice_max_pages,
             "provider_label": settings.provider_label,
         }
 
     app.include_router(chat_docs_router)
     app.include_router(contracts_router)
+    app.include_router(invoices_router)
     return app

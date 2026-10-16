@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     max_file_mb: int = 10
     max_pages: int = 100
     contract_max_pages: int = 40
+    invoice_max_files: int = 5
+    invoice_max_pages: int = 5
     top_k: int = 6
     rate_limit_per_minute: int = 10
 
