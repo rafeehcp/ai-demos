@@ -127,8 +127,12 @@ const CSV_COLUMNS = [
 
 type CsvRow = Record<(typeof CSV_COLUMNS)[number], string | number | null>;
 
+const PLAIN_NUMBER = /^-?\d+(\.\d+)?$/;
+
 export function csvField(value: string | number | null): string {
-  const text = value === null ? "" : String(value);
+  let text = value === null ? "" : String(value);
+  // Text read from an uploaded document must not run as a spreadsheet formula when the CSV is opened.
+  if (/^[=+\-@\t\r]/.test(text) && !PLAIN_NUMBER.test(text)) text = `'${text}`;
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

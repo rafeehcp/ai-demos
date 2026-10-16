@@ -74,6 +74,11 @@ describe("csvField", () => {
     ["cr\rhere", '"cr\rhere"'],
     [null, ""],
     [3, "3"],
+    ["-10.00", "-10.00"],
+    ['=HYPERLINK("http://x")', `"'=HYPERLINK(""http://x"")"`],
+    ["+1 555 0100", "'+1 555 0100"],
+    ["@SUM(A1)", "'@SUM(A1)"],
+    ["-discount", "'-discount"],
   ])("quotes %j as %j", (value, expected) => {
     expect(csvField(value)).toBe(expected);
   });

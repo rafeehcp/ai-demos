@@ -45,7 +45,7 @@ flowchart LR
 | Frontend | Next.js (App Router), TypeScript |
 | LLM | Gemini via its OpenAI-compatible API (swappable) |
 | Hosting | Render (API) and Vercel (frontend) |
-| Tests | pytest (148 tests across the three demos, offline fake model), Vitest (44 tests) |
+| Tests | pytest (148 tests across the three demos, offline fake model), Vitest (49 tests) |
 
 ## Contract reviewer
 
