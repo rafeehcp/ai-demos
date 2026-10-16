@@ -189,3 +189,9 @@ def test_money_stays_decimal_and_serializes_as_strings():
 def test_run_checks_returns_every_check_in_display_order():
     names = [c.name.value for c in run_checks(fields(), TODAY)]
     assert names == ["line_amounts", "subtotal", "total", "dates", "currency"]
+
+
+def test_a_party_with_nothing_filled_in_is_null():
+    empty = {"name": None, "address": None, "tax_id": None, "email": ""}
+    assert fields(customer=empty).customer is None
+    assert fields(customer={"name": "Quillon Design Studio"}).customer.name == "Quillon Design Studio"

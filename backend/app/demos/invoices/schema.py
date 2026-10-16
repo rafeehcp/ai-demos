@@ -28,6 +28,13 @@ def _currency_code(value: object) -> object:
     return value
 
 
+def _empty_party_is_none(value: object) -> object:
+    """Models often write {"name": null, ...} for a party the document doesn't name."""
+    if isinstance(value, dict) and not any(v not in (None, "") for v in value.values()):
+        return None
+    return value
+
+
 Money = Annotated[Decimal, BeforeValidator(_plain_number)]
 
 
@@ -36,6 +43,9 @@ class Party(BaseModel):
     address: Optional[str] = None
     tax_id: Optional[str] = None
     email: Optional[str] = None
+
+
+OptionalParty = Annotated[Optional[Party], BeforeValidator(_empty_party_is_none)]
 
 
 class LineItem(BaseModel):
@@ -58,8 +68,8 @@ class InvoiceFields(BaseModel):
     """What the model reads off the document."""
 
     document_type: DocumentType
-    vendor: Optional[Party] = None
-    customer: Optional[Party] = None
+    vendor: OptionalParty = None
+    customer: OptionalParty = None
     invoice_number: Optional[str] = None
     issue_date: Optional[date] = None
     due_date: Optional[date] = None
