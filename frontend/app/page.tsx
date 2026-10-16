@@ -1,13 +1,6 @@
 import Link from "next/link";
 import styles from "./page.module.css";
 
-const UPCOMING = [
-  {
-    title: "Invoice → JSON",
-    summary: "Turns a PDF invoice into structured JSON your app can import.",
-  },
-];
-
 export default function Home() {
   return (
     <div className={styles.page}>
@@ -90,13 +83,20 @@ export default function Home() {
                 Try it now
               </p>
             </li>
-            {UPCOMING.map((demo) => (
-              <li key={demo.title} className={styles.demo}>
-                <h3 className={styles.demoTitle}>{demo.title}</h3>
-                <p className={styles.demoSummary}>{demo.summary}</p>
-                <p className={styles.soon}>Coming soon</p>
-              </li>
-            ))}
+            <li className={`${styles.demo} ${styles.demoLive}`}>
+              <h3 className={styles.demoTitle}>
+                <Link href="/invoices" className={styles.demoLink}>
+                  Invoice → JSON
+                </Link>
+              </h3>
+              <p className={styles.demoSummary}>
+                Turn invoices and receipts, PDFs or photos, into structured data you can download as CSV or JSON. The
+                app checks the arithmetic, so a misread total is flagged.
+              </p>
+              <p className={styles.demoAction} aria-hidden="true">
+                Try it now
+              </p>
+            </li>
           </ul>
         </section>
       </main>
