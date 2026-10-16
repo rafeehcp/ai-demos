@@ -21,7 +21,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.core.config import get_settings  # noqa: E402
-from app.core.llm import get_provider  # noqa: E402
+from app.core.llm import LLMError, get_provider  # noqa: E402
 from app.demos.invoices.checks import run_checks  # noqa: E402
 from app.demos.invoices.document import read_document  # noqa: E402
 from app.demos.invoices.extract import extract_invoice  # noqa: E402
@@ -75,7 +75,11 @@ async def main(folder: Path) -> None:
             data = (folder / sample.file_name).read_bytes()
             document = read_document(data, max_mb=settings.max_file_mb, max_pages=settings.invoice_max_pages)
             started = time.perf_counter()
-            invoice = await extract_invoice(llm, document, TODAY)
+            try:
+                invoice = await extract_invoice(llm, document, TODAY)
+            except LLMError as exc:
+                print(f"\n{sample.file_name}: not extracted ({exc.message})")
+                continue
             seconds = time.perf_counter() - started
             got = json.loads(invoice.model_dump_json())
             expected = flatten(truth(sample))

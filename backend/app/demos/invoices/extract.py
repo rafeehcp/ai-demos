@@ -40,10 +40,10 @@ Rules:
 - document_type is "invoice", "receipt", "credit_note" or "other".
 - vendor is the business that issued the document; customer is who it is billed to, or null on most receipts.
 - Money, quantities and rates are JSON strings holding a plain number: a dot for decimals, no currency symbol, no thousands separators, no percent sign. Write 1.234,56 as "1234.56".
-- Dates are YYYY-MM-DD. For dates like 03/04/2026, use the vendor's country or currency to decide whether the day or the month comes first.
+- Dates are YYYY-MM-DD. A date like 10/03/2026 is month first (October 3) when the vendor is in the United States, which a US state abbreviation in the address or a USD amount shows, and day first (10 March) for most other countries. Decide this from the vendor's address and currency before reading any date.
 - currency is the ISO 4217 code, such as "USD", "EUR" or "INR". Use a symbol only when it is unambiguous for the vendor's country.
 - line_items: one entry per line of goods or services, in document order. quantity and unit_price are null when the line doesn't show them. amount is the line total as printed.
-- taxes: one entry per tax line added to the subtotal, such as VAT, GST or sales tax. rate_percent is null when no rate is printed.
+- taxes: one entry per tax line added to the subtotal, such as VAT, GST or sales tax. label is the tax name alone, without the rate. rate_percent is null when no rate is printed.
 - discount: a discount taken off the subtotal, as a positive number. null when there is none.
 - total: the final amount due or paid.
 - Every text value is plain text: no Markdown, asterisks or bullet points."""
