@@ -87,7 +87,6 @@ def fake_review(user: str) -> dict:
 
 
 async def review_contract(llm: LLMProvider, pages: Sequence[str]) -> ContractReview:
-    """Ask the model for a review, then check every quote."""
     review = await complete_validated(llm, ContractReview, SYSTEM_PROMPT, build_user_prompt(pages))
     return sort_review(verify_evidence(review, pages))
 

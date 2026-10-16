@@ -60,7 +60,6 @@ def build_user_prompt(document: Document) -> str:
 
 
 async def extract_invoice(llm: LLMProvider, document: Document, today: date) -> Invoice:
-    """Ask the model for the fields, then check the arithmetic."""
     fields = await complete_validated(llm, InvoiceFields, SYSTEM_PROMPT, build_user_prompt(document), document.images)
     return Invoice(**fields.model_dump(), checks=run_checks(fields, today))
 
