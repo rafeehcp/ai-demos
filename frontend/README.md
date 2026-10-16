@@ -1,7 +1,7 @@
 # Frontend
 
 Next.js App Router site for the AI demos. `/` lists the demos, `/chat` is
-Chat with your docs and `/contracts` is the contract reviewer. The typed client for `docs/api.md` is in `lib/api.ts`.
+Chat with your docs, `/contracts` is the contract reviewer and `/invoices` is Invoice → JSON. The typed client for `docs/api.md` is in `lib/api.ts`.
 
 ## Run
 
@@ -29,7 +29,10 @@ state shows. Questions that start with these commands return contract errors:
 
 A contract review returns a real review of the sample lease
 (`lib/mock-review.ts`) with one quote that isn't in the contract, so the
-unverified state shows. Uploading a file named `error.pdf` returns `llm_error`.
+unverified state shows. An invoice extraction returns the real result for
+the sample receipt for any image and for the sample invoice for any PDF
+(`lib/mock-invoices.ts`), so a failed check shows. Uploading a file named
+`error.pdf` to either demo returns `llm_error`.
 
 A production build with `NEXT_PUBLIC_API_URL` unset shows a configuration
 error instead of falling back to the mock.

@@ -6,7 +6,7 @@ Small, working examples of AI features added to ordinary web apps, built by [Moh
 |---|---|---|
 | **Chat with your docs** | Upload PDFs and ask questions. Every answer cites the document and page it came from. | Live |
 | **Contract reviewer** | Pulls out key clauses, dates and risks, each with a quote from the contract. | Live |
-| Invoice → JSON | Turns invoices and receipts into structured data with a CSV export. | Coming soon |
+| **Invoice → JSON** | Turns invoices and receipts into structured data with a CSV export, and checks that the numbers add up. | Live |
 
 <!-- Screenshot: add docs/screenshot-chat.png and uncomment.
 ![Chat with your docs](docs/screenshot-chat.png)
@@ -45,7 +45,7 @@ flowchart LR
 | Frontend | Next.js (App Router), TypeScript |
 | LLM | Gemini via its OpenAI-compatible API (swappable) |
 | Hosting | Render (API) and Vercel (frontend) |
-| Tests | pytest (80 tests across both demos, offline fake model), Vitest |
+| Tests | pytest (148 tests across the three demos, offline fake model), Vitest (44 tests) |
 
 ## Contract reviewer
 
@@ -67,6 +67,27 @@ flowchart LR
 - **No retrieval step.** A contract of up to 40 pages fits in one model call, and a reviewer has to read all of it anyway.
 - **Strict output.** The reply is validated against a closed schema: clause kinds and severities are fixed lists. A malformed reply is retried once with the validation error, then reported as an error rather than shown half-parsed.
 - **Shared core.** The PDF checks, model fallback chain, rate limit and error shape are the same code as Chat with your docs. Nothing is stored: the review is computed and returned in one request.
+
+## Invoice → JSON
+
+A visitor uploads up to five invoices or receipts, as PDFs or photos, or tries the two built-in samples. Each file becomes a card with the vendor, customer, number, dates, currency, line items, taxes and totals. The app then does the arithmetic itself and shows a passed, failed or skipped label for each check, so a misread digit is flagged instead of slipping into someone's books. The batch downloads as CSV, one row per line item, or as JSON.
+
+### How it works
+
+```mermaid
+flowchart LR
+  A[PDF or photo] --> B[PDF: text per page<br/>and pages rendered<br/>with pypdfium2]
+  A --> C[Photo: turned upright,<br/>scaled down]
+  B --> D[LLM in JSON mode<br/>with the page images]
+  C --> D
+  D --> E[pydantic schema<br/>one retry with the error]
+  E --> F[Checks in pure functions:<br/>line amounts, subtotal,<br/>total, dates, currency]
+```
+
+- **Checked numbers.** The model only copies what is printed. The backend works out whether each line is quantity times price, whether the lines add up to the subtotal, and whether subtotal minus discount plus taxes equals the total. A failed check names both numbers: "Lines add up to 25.95 but the subtotal says 26.95." The sample receipt has exactly that mistake.
+- **No float rounding.** Money is `Decimal` on the backend and a string in JSON and CSV, so `0.1 + 0.2` is `0.3`. Each check allows 0.01 per summed term for rounding on the document.
+- **Images go to the model.** Gemini reads the page images through the OpenAI-compatible `image_url` content part, plus the text layer when a PDF has one, so scanned PDFs and phone photos work too.
+- **One file at a time.** The browser sends the batch one file per request, so one bad file doesn't sink the others and the free backend holds a single file in memory. Nothing is stored.
 
 ## Run it locally
 
@@ -105,11 +126,12 @@ cd frontend && npm test && npm run lint
 ## Repository layout
 
 ```text
-backend/          FastAPI app. core/ is shared by every demo; demos/chat_docs/ and demos/contracts/ are the demos
-frontend/         Next.js app. / lists the demos; /chat and /contracts are the demos
+backend/          FastAPI app. core/ is shared by every demo; demos/chat_docs/, demos/contracts/ and demos/invoices/ are the demos
+frontend/         Next.js app. / lists the demos; /chat, /contracts and /invoices are the demos
 docs/api.md       HTTP contract between frontend and backend
 docs/design.md    Data model, retrieval and citation design, limits
 docs/contract-reviewer.md  Contract reviewer design and API
+docs/invoice-extractor.md  Invoice → JSON design and API
 render.yaml       Render blueprint for the backend
 ```
 
