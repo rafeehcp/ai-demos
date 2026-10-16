@@ -2,19 +2,19 @@
 
 Small, working examples of AI features added to ordinary web apps, built by [Mohamed Rafeeh Ibrahim](https://www.linkedin.com/in/pomagom13/).
 
-| Demo | What it does | Status |
-|---|---|---|
-| **Chat with your docs** | Upload PDFs and ask questions. Every answer cites the document and page it came from. | Live |
-| **Contract reviewer** | Pulls out key clauses, dates and risks, each with a quote from the contract. | Live |
-| **Invoice → JSON** | Turns invoices and receipts into structured data with a CSV export, and checks that the numbers add up. | Live |
+**Try them live: [ai-demos-one.vercel.app](https://ai-demos-one.vercel.app)**. The contract and invoice demos have built-in samples, so you can try them without your own files. The free server sleeps when idle, so the first request can take up to a minute.
 
-<!-- Screenshot: add docs/screenshot-chat.png and uncomment.
-![Chat with your docs](docs/screenshot-chat.png)
--->
+| Demo | What it does |
+|---|---|
+| [**Chat with your docs**](https://ai-demos-one.vercel.app/chat) | Upload PDFs and ask questions. Every answer cites the document and page it came from. |
+| [**Contract reviewer**](https://ai-demos-one.vercel.app/contracts) | Pulls out key clauses, dates and risks, each with a quote from the contract. |
+| [**Invoice → JSON**](https://ai-demos-one.vercel.app/invoices) | Turns invoices and receipts into structured data with a CSV export, and checks that the numbers add up. |
 
 ## Chat with your docs
 
 A visitor uploads up to three PDFs and asks questions in plain language. The answer is written only from the uploaded documents. Each claim carries a citation chip, and selecting a chip shows the quoted passage and opens that page of the PDF. When the documents don't contain the answer, the app says so instead of guessing.
+
+![An answer about rent and fees, with a citation chip per claim and the quoted passage from page 2 opened](docs/screenshot-chat.png)
 
 ### How it works
 
@@ -51,6 +51,8 @@ flowchart LR
 
 A visitor uploads one contract PDF, or tries the built-in sample lease, and gets a structured review: a plain-English summary, the parties, a table of key terms, the risks ranked by severity, and the clauses grouped by topic. Every point carries a quote and a page number. The backend checks each quote against the document before the visitor sees it, and a quote it can't find is shown as unverified rather than as a citation. The review downloads as JSON.
 
+![Risks from the sample lease ranked by severity, each with its page, and one expanded to show the checked quote](docs/screenshot-contracts.png)
+
 ### How it works
 
 ```mermaid
@@ -71,6 +73,8 @@ flowchart LR
 ## Invoice → JSON
 
 A visitor uploads up to five invoices or receipts, as PDFs or photos, or tries the two built-in samples. Each file becomes a card with the vendor, customer, number, dates, currency, line items, taxes and totals. The app then does the arithmetic itself and shows a passed, failed or skipped label for each check, so a misread digit is flagged instead of slipping into someone's books. The batch downloads as CSV, one row per line item, or as JSON.
+
+![A photographed receipt read into line items and totals, with the subtotal check failing because the lines add up to 25.95, not 26.95](docs/screenshot-invoices.png)
 
 ### How it works
 
